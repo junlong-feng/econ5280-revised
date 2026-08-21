@@ -1,0 +1,178 @@
+\chapter{Matrix Algebra}
+\label{ch:matrix}
+
+\section{Why matrices?}
+
+Recall that an $n\times 1$ vector $Y$ can collect $n$ observations of an
+outcome, while an $n\times k$ matrix $X$ collects $k$ explanatory variables
+for those same observations.  Most estimators in this course are formulas
+built from $Y$ and $X$, so a compact set of matrix-algebra tools will save us
+a great deal of work.
+
+This chapter contains the tools needed in the main course.  Additional
+algebra, including eigenvalues and matrix derivatives, is collected in
+Appendix~\ref{app:matrix}.
+
+\section{Scalars, vectors, and matrices}
+
+A \emph{scalar} is a number.  A \emph{vector} is an ordered list of numbers,
+usually written as a column.  A \emph{matrix} is a rectangular array of
+numbers.  If $A$ has $n$ rows and $k$ columns, then it is an $n\times k$
+matrix.  Its entry in row $i$ and column $j$ is $a_{ij}$ (or $A_{ij}$).
+For example,
+\[
+  A=\begin{pmatrix}
+    a_{11}&a_{12}&a_{13}\\
+    a_{21}&a_{22}&a_{23}
+  \end{pmatrix}
+  =(A_1,A_2,A_3)
+\]
+is $2\times3$, where $A_j$ is its $j$th column.  A scalar is a $1\times1$
+matrix, and a column vector is a matrix with one column.
+
+\begin{definition}[Transpose]
+The transpose $A'$ is obtained by interchanging rows and columns:
+$(A')_{ij}=A_{ji}$.  If $A$ is $n\times k$, then $A'$ is $k\times n$.
+\end{definition}
+
+Thus, for the matrix above,
+\[
+  A'=\begin{pmatrix}
+    a_{11}&a_{21}\\
+    a_{12}&a_{22}\\
+    a_{13}&a_{23}
+  \end{pmatrix}.
+\]
+
+\begin{definition}[Square, symmetric, diagonal, and identity matrices]
+A matrix is \emph{square} if it has the same number of rows and columns.  A
+square matrix is \emph{symmetric} if $A=A'$.  A matrix is \emph{diagonal} if
+all off-diagonal entries are zero.  The $k\times k$ identity matrix $I_k$ is
+diagonal with every diagonal entry equal to one.
+\end{definition}
+
+Symmetric matrices appear repeatedly as covariance matrices and quadratic
+forms.  Identity matrices play the same role for matrix multiplication that
+the scalar $1$ plays for ordinary multiplication.
+
+\section{Matrix multiplication}
+
+Two matrices $A$ and $B$ are \emph{conformable} for the product $AB$ when the
+number of columns of $A$ equals the number of rows of $B$.  If $A$ is
+$m\times k$ and $B$ is $k\times r$, then $AB$ is $m\times r$, with
+\begin{equation}
+\label{eq:matrix-product}
+  (AB)_{ij}=\sum_{\ell=1}^{k}a_{i\ell}b_{\ell j}.
+\end{equation}
+Always check dimensions before multiplying.
+
+\subsection{Inner and outer products}
+
+For two $k\times1$ vectors $a$ and $b$, the \emph{inner product} is the
+scalar
+\[
+  a'b=\sum_{j=1}^{k}a_jb_j.
+\]
+The \emph{outer product} $ab'$ is instead a $k\times k$ matrix whose
+$(i,j)$ entry is $a_i b_j$.  This distinction matters throughout
+econometrics.  For instance, $X_iX_i'$ is a $k\times k$ outer product, while
+$X_i'\beta$ is a scalar inner product.
+
+If $X$ is $n\times k$ and its $i$th row is $X_i'$, then
+\begin{equation}
+\label{eq:xtx-sum}
+  X'X=\sum_{i=1}^{n}X_iX_i'.
+\end{equation}
+This identity turns a sample average of outer products into compact matrix
+notation.
+
+\subsection{Rules worth remembering}
+
+Matrix multiplication is generally not commutative: even when both products
+exist, $AB$ need not equal $BA$.  It is associative and distributive whenever
+the dimensions conform:
+\[
+  A(BC)=(AB)C,\qquad A(B+C)=AB+AC.
+\]
+Transpose reverses the order of a product:
+\[
+  (AB)'=B'A'.
+\]
+
+\begin{rcode}
+A <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3, ncol = 2)
+B <- matrix(c(2, 3, 4, 5, 6, 7), nrow = 3, ncol = 2)
+t(A) %*% B
+
+# The same (1,2) entry as an inner product of two columns
+sum(A[, 1] * B[, 2])
+\end{rcode}
+
+\section{Linear independence, rank, and invertibility}
+
+Vectors $a_1,\ldots,a_r$ are \emph{linearly independent} if
+\[
+  c_1a_1+\cdots+c_ra_r=0
+\]
+implies $c_1=\cdots=c_r=0$.  Otherwise at least one direction is redundant.
+
+\begin{definition}[Rank and full rank]
+The rank of a matrix is the dimension of its column space (equivalently, its
+row space).  An $m\times k$ matrix has
+\[
+  \operatorname{rank}(A)\leq \min\{m,k\}.
+\]
+It is \emph{full column rank} if its rank is $k$, \emph{full row rank} if its
+rank is $m$, and simply \emph{full rank} if its rank is
+$\min\{m,k\}$.
+\end{definition}
+
+An inverse is defined only for a square matrix.  A $k\times k$ matrix $A$ is
+invertible if there exists $A^{-1}$ satisfying
+\[
+  A^{-1}A=AA^{-1}=I_k.
+\]
+A square matrix is invertible if and only if it has rank $k$.  A rectangular
+full-rank matrix is \emph{not} invertible, although one of its Gram matrices
+may be:
+\begin{itemize}
+  \item $A'A$ is invertible if and only if $A$ has full column rank;
+  \item $AA'$ is invertible if and only if $A$ has full row rank.
+\end{itemize}
+Both Gram matrices can be invertible simultaneously only when $A$ is square
+and full rank.  Also,
+\[
+  \operatorname{rank}(A'A)=\operatorname{rank}(AA')
+  =\operatorname{rank}(A).
+\]
+If conformable square matrices $A$ and $B$ are invertible, then
+$(AB)^{-1}=B^{-1}A^{-1}$.
+
+\section{Positive semidefinite matrices}
+
+\begin{definition}[Positive definiteness]
+A real symmetric $k\times k$ matrix $A$ is \emph{positive semidefinite}
+(p.s.d.) if $x'Ax\geq0$ for every $x\in\mathbb R^k$.  It is \emph{positive
+definite} (p.d.) if $x'Ax>0$ for every nonzero $x$.
+\end{definition}
+
+For any real $m\times k$ matrix $A$,
+\[
+  x'A'Ax=(Ax)'(Ax)=\lVert Ax\rVert^2\geq0,
+\]
+so $A'A$ is p.s.d.  It is p.d. precisely when $A$ has full column rank.
+Similarly, $AA'$ is p.s.d. and is p.d. precisely when $A$ has full row rank.
+This argument is both shorter and more general than appealing to an
+eigendecomposition.
+
+Covariance matrices are p.s.d. for the same reason.  If $W$ is a random
+vector with finite second moments and covariance matrix $\Sigma$, then for
+any $a$,
+\[
+  a'\Sigma a
+  =\mathbb E\!\left[\{a'(W-\mathbb EW)\}^2\right]\geq0.
+\]
+
+The optional algebra in Appendix~\ref{app:matrix} gives detailed formulas,
+eigenvalue characterizations for symmetric matrices, and the matrix
+derivatives used to derive least squares.

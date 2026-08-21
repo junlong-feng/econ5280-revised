@@ -1,0 +1,158 @@
+\chapter{Introduction to Econometrics}
+\label{ch:intro}
+
+\section{What is econometrics?}
+
+The term \emph{econometrics} was introduced by Ragnar Frisch, one of the
+founders of the Econometric Society, the first editor of \emph{Econometrica},
+and a co-recipient of the first Nobel Memorial Prize in Economic Sciences in
+1969.  Frisch emphasized that econometrics is not economic statistics,
+economic theory, or mathematics in isolation.  Its strength comes from
+combining all three.  In modern language, we might summarize the field as
+\[
+  \text{economic models}+\text{statistical methods}+\text{economic data}.
+\]
+This chapter draws in part on Chapter~1 of Hansen's \emph{Econometrics}
+(2022).
+
+Econometrics therefore deals with data, but so do statistics and machine
+learning.  What is distinctive about econometrics?  We will answer that
+question partly here and, more importantly, throughout the course.
+
+\section{An econometric description of data}
+
+Suppose we want to know whether obtaining a master's degree would increase
+future salary.  One tempting comparison is:
+\begin{itemize}
+  \item Alice has a master's degree and earns \$12,000 per month;
+  \item Bob entered the labor market after college and earns \$8,000 per
+        month;
+  \item therefore, a master's degree raises salary by \$4,000.
+\end{itemize}
+This conclusion is not reliable.  Alice and Bob may differ in age, gender,
+major, college, ability, family background, or labor-market conditions.  Two
+people are also far too small a sample from which to draw a general
+conclusion.  Two natural responses are to collect more characteristics for
+each person (more \emph{variables}) and to collect information from more
+people (a larger \emph{sample}).
+
+\subsection{Variables and observations}
+
+We usually use uppercase Latin letters for variables.  Let $Y_i$ be person
+$i$'s monthly salary, let $X_{1i}$ indicate whether the person has a master's
+degree, and let $X_{2i}$ be age.  We collect the explanatory variables in a
+column vector,
+\[
+  X_i=(X_{1i},X_{2i})'.
+\]
+Unless stated otherwise, vectors in these notes are column vectors; a prime
+denotes transpose.
+
+Suppose a survey contains $n$ participants.  The sample can be written as
+\[
+  \{(Y_i,X_i):i=1,\ldots,n\}.
+\]
+It has $n$ observations and three variables.  In a data matrix, observations
+are rows and variables are columns.  The following small example makes this
+concrete.
+
+\begin{rcode}
+set.seed(5280)                 # make the demonstration reproducible
+n <- 4
+Y  <- exp(rnorm(n))            # simulated monthly income
+X1 <- rbinom(n, 1, 0.5)        # 1 = master's degree
+X2 <- sample(22:30, n, replace = TRUE)
+
+data_matrix <- cbind(Y, X1, X2)
+data_frame  <- data.frame(income = Y, MA = X1, age = X2)
+data_matrix
+data_frame
+\end{rcode}
+
+Mathematically, the data matrix is just a matrix.  We will use vectors and
+matrices both to represent data and to derive estimators.  The notation takes
+some getting used to, but it turns many long calculations into short ones.
+
+\subsection{A probabilistic perspective}
+
+Econometrics treats the sample as random.  Before we ask person $i$ about
+salary, the answer is unknown to us and can be represented as a draw from a
+distribution.  After the survey, we observe a \emph{realization} of that
+random variable.  For four observations, the random data matrix is
+\begin{equation}
+\label{eq:intro-random-matrix}
+  \begin{pmatrix}
+    Y_1&X_{11}&X_{21}\\
+    Y_2&X_{12}&X_{22}\\
+    Y_3&X_{13}&X_{23}\\
+    Y_4&X_{14}&X_{24}
+  \end{pmatrix}.
+\end{equation}
+Before sampling, its entries are random; afterward, the realized data are
+fixed numbers.
+
+A useful way to organize the logic is the following.
+\begin{enumerate}
+  \item Nature determines a population distribution---the ``dice of God.''
+        Researchers do not know it.
+  \item We specify how observations will be sampled.
+  \item Before seeing the outcomes, we specify an \emph{estimator} or a
+        \emph{test statistic}: a rule that maps any possible sample into an
+        answer.  Because the rule is a function of random observations, the
+        estimator is itself random before the data are observed.
+  \item We observe one realization of the sample.
+  \item We apply the rule to that realization and obtain an \emph{estimate}
+        or a test decision.
+\end{enumerate}
+The distinction between an estimator and an estimate is important.  The
+estimator is the random rule; the estimate is the number produced by the
+observed data.  In casual discussion, people also use \emph{sample} and
+\emph{data set} interchangeably, although the former can emphasize the random
+object and the latter its realization.
+
+\subsection{Types of data}
+
+Data can be classified along several dimensions.
+
+\paragraph{Observational and experimental data.}
+Observational data record outcomes generated without researcher-controlled
+treatment assignment: surveys, stock returns, GDP, and prices are familiar
+examples.  Experimental data arise when a researcher deliberately randomizes
+an intervention.  Randomization often makes causal interpretation much
+easier, but many economically important interventions cannot be randomized
+for practical, legal, or ethical reasons.  We study methods for both kinds of
+data.
+
+\paragraph{Cross-sectional, time-series, and panel data.}
+Cross-sectional data contain many entities observed at one time, such as a
+one-time survey of 1,000 graduates.  Time-series data follow one entity over
+many periods, such as quarterly GDP.  Panel data follow many entities over
+many periods, such as an annual household survey.  Much of the course uses
+cross-sectional notation, but panel data become central when we study
+difference-in-differences and event studies in
+Chapter~\ref{ch:did-event-study}.  In a panel, observations for the same unit
+over time are generally dependent; later chapters account for that dependence
+explicitly rather than imposing i.i.d. sampling at the unit--time level.
+
+\section{Causal inference and prediction}
+
+Causal inference and prediction are two major goals of data analysis.
+Econometrics puts particular emphasis on causal questions:
+\begin{itemize}
+  \item Does air pollution reduce labor productivity?
+  \item Does smoking during pregnancy harm infant health?
+  \item Does graduate school raise earnings?
+  \item Does a higher minimum wage reduce employment?
+\end{itemize}
+Prediction instead asks for an accurate forecast, for example tomorrow's
+stock price, next quarter's GDP, or which product a customer is likely to
+buy.  A model may predict well without describing what would happen under an
+intervention.  Conversely, a credible causal design need not be the best
+forecasting model.
+
+Controlled experiments provide especially transparent causal evidence, but
+they are not always feasible.  Econometricians have therefore developed a
+large toolkit for recovering causal effects from observational data.  This
+course studies designs based on randomized experiments as well as selection
+on observables, instrumental variables, regression discontinuity,
+difference-in-differences, event studies, and modern machine-learning tools.

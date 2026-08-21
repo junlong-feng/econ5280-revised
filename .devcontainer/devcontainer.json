@@ -1,0 +1,28 @@
+{
+  "name": "ECON 5280 R and Quarto",
+  "image": "ghcr.io/rocker-org/devcontainer/r-ver:4.5",
+  "features": {
+    "ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {
+      "version": "1.10.18"
+    },
+    "ghcr.io/rocker-org/devcontainer-features/r-packages:1": {
+      "packages": "ggplot2,mvtnorm,plotly,latex2exp,ggpointdensity,weights,scales,ivreg,Matrix,grf,DiagrammeR,sandwich,nlWaldTest,lmtest,rdd,did,fixest",
+      "installSystemRequirements": true
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "16gb"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "REditorSupport.r",
+        "quarto.quarto"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}
+

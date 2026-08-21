@@ -1,0 +1,354 @@
+\chapter{Causal Forests}
+\label{chap:causal-forest}
+
+\section*{Outline}
+
+The ATE summarizes an average effect, but policy questions often concern
+heterogeneity: who benefits, who is harmed, and how does the effect vary with
+observed characteristics?  This chapter introduces the conditional average
+treatment effect (CATE), reviews why conventional nonparametric regression becomes
+difficult in many dimensions, and explains the ideas behind honest causal trees and
+causal forests.
+
+\section{CATE and treatment-effect heterogeneity}
+\label{sec:cf-cate}
+
+For a binary treatment, the average treatment effect is
+\[
+  \tau=\E[Y_i(1)-Y_i(0)].
+\]
+It conceals heterogeneity.  The individual treatment effect
+$Y_i(1)-Y_i(0)$ contains all such variation, but it cannot normally be observed and
+does not by itself explain which characteristics generate the variation.
+
+Let $W_i$ be a vector of pre-treatment characteristics.  The
+\emph{conditional average treatment effect} is
+\begin{equation}
+  \tau(w)\equiv \operatorname{CATE}(w)
+  =\E[Y_i(1)-Y_i(0)\mid W_i=w].
+  \label{eq:cf-cate}
+\end{equation}
+This object organizes heterogeneity by observed characteristics.  If $W_i$ is a
+gender indicator, for example, comparing $\tau(1)$ and $\tau(0)$ describes how the
+effect differs between those groups.  The law of iterated expectations also gives
+\begin{equation}
+  \tau=\E[\tau(W_i)].
+  \label{eq:cf-ate-from-cate}
+\end{equation}
+Thus the CATE function contains the information needed to recover the ATE.
+
+\subsection{Unconfoundedness, overlap, and identification}
+\label{sec:cf-identification}
+
+Randomized treatment is not necessary if treatment is as good as random after
+conditioning on observed covariates.  The key assumption is
+\begin{equation}
+  D_i\indep\bigl(Y_i(1),Y_i(0)\bigr)\mid W_i,
+  \label{eq:cf-unconfoundedness}
+\end{equation}
+called \emph{unconfoundedness}, \emph{conditional exchangeability}, or
+\emph{selection on observables}.  We also need overlap at the covariate value of
+interest:
+\begin{equation}
+  0<\Pr(D_i=1\mid W_i=w)<1.
+  \label{eq:cf-overlap}
+\end{equation}
+Without overlap, one of the two conditional outcome means cannot be learned from
+the data at that $w$.
+
+Complete randomization of $D_i$ independently of potential outcomes and $W_i$
+implies \eqref{eq:cf-unconfoundedness}, but the converse need not hold.  Stratified
+experiments are a useful example: treatment probabilities may differ by gender,
+age, or site, while assignment remains random within each stratum.  In observational
+data, \eqref{eq:cf-unconfoundedness} requires all common causes of treatment and the
+potential outcomes to be included in $W_i$.  It is a substantive assumption, not
+something that can be verified from the observed data alone.
+
+For intuition, suppose $Y_i(d)=g_d(W_i,U_i)$.  A sufficient condition is that,
+conditional on $W_i$, treatment is independent of the outcome-relevant unobservable
+$U_i$.  Merely allowing treatment to remain related to such an $U_i$ after
+conditioning on $W_i$ would generally violate unconfoundedness.
+
+Under \eqref{eq:cf-unconfoundedness} and \eqref{eq:cf-overlap},
+\begin{align}
+  \tau(w)
+  &=\E[Y_i(1)\mid W_i=w]-\E[Y_i(0)\mid W_i=w] \notag\\
+  &=\E[Y_i(1)\mid D_i=1,W_i=w]
+    -\E[Y_i(0)\mid D_i=0,W_i=w] \notag\\
+  &=\E[Y_i\mid D_i=1,W_i=w]
+    -\E[Y_i\mid D_i=0,W_i=w].
+  \label{eq:cf-identification}
+\end{align}
+The second equality uses unconfoundedness and the last uses consistency.  Define
+\[
+  \mu_d(w)=\E[Y_i\mid D_i=d,W_i=w].
+\]
+Estimating the CATE is now a problem of estimating the two regression functions
+$\mu_1$ and $\mu_0$, or estimating their contrast directly.
+
+If $W$ is discrete, a cell mean may work.  If $W$ is continuous, the event $W=w$
+usually has probability zero, so exact matching is unavailable.  We need a method
+that borrows information across nearby or otherwise similar observations.
+
+\section{Traditional nonparametric methods}
+\label{sec:cf-nonparametrics}
+
+There are two broad ways to estimate an unknown regression function.
+
+\subsection{Local methods}
+
+A local method estimates $\mu_d(w)$ using observations with $W_i$ near $w$.  With a
+scalar $W$, a simple estimator averages observations for which
+$|W_i-w|\leq h$.  The bandwidth $h$ controls a familiar trade-off:
+
+\begin{itemize}
+  \item a larger $h$ uses more observations and reduces variance, but introduces
+  more approximation bias;
+  \item a smaller $h$ focuses more tightly on $w$ and reduces bias, but increases
+  variance.
+\end{itemize}
+
+If $W$ has dimension $p$ and each coordinate uses a bandwidth of order $h$, the
+effective sample size is of order $nh^p$.  Consequently, a typical pointwise
+standard error is of order
+\begin{equation}
+  \frac{1}{\sqrt{nh^p}},
+  \label{eq:cf-local-se}
+\end{equation}
+not $\sqrt{nh^p}$.  As $p$ grows, it becomes difficult to find observations close
+to $w$ in every coordinate.  This is the \emph{curse of dimensionality}.
+
+\subsection{Global methods}
+
+A global method approximates the entire function.  For known basis functions
+$b_1,b_2,\ldots$, one may write
+\[
+  \mu_d(w)\approx \sum_{j=1}^{J}a_{dj}b_j(w).
+\]
+Polynomials, B-splines, and wavelets are common choices.  Increasing $J$ reduces
+approximation bias but requires estimating more coefficients.  With several
+covariates, the number of basis terms needed for a flexible approximation can grow
+quickly, so the curse of dimensionality remains.
+
+Many machine-learning methods fit within this local--global distinction.  Trees and
+forests create adaptive neighborhoods and can be viewed as adaptive local methods.
+Neural networks, studied later, construct a global approximation.
+
+\section{Regression trees, causal trees, and causal forests}
+\label{sec:cf-trees}
+
+The central insight of a tree is that geometric closeness is sufficient but not
+necessary for similar regression values.  Two distant covariate vectors may have
+the same $\mu_d(w)$, while a function may change sharply over a small distance.  A
+tree uses the outcomes to learn rectangular regions within which the target is
+approximately constant.
+
+\subsection{A regression-tree sketch}
+
+Suppose $W=(W_1,W_2)'$ lies in the unit square.  A simplified recursive partitioning
+algorithm proceeds as follows.
+
+\begin{enumerate}
+  \item For each covariate $W_j$ and each admissible threshold $t$, split the current
+  node into $W_j\leq t$ and $W_j>t$.
+  \item Evaluate how much the split reduces within-node squared error, equivalently
+  how strongly the two child-node means differ after accounting for their sizes.
+  \item Choose the best admissible split and repeat within each child node.
+  \item Stop when a depth or minimum-leaf-size rule is reached.  Predict at $w$ by
+  averaging outcomes in the terminal leaf containing $w$.
+\end{enumerate}
+
+The one-coordinate-at-a-time splits make computation manageable and give an
+interpretable binary-tree representation.  In practice, candidate thresholds are
+the finitely many cut points induced by the sample, and split criteria include
+regularization to avoid tiny or severely imbalanced leaves.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.94\textwidth]{illuTree.png}
+  \caption{A generic partition, a recursive rectangular partition, its tree
+  representation, and the resulting piecewise-constant fit.  Adapted from
+  Friedman, Hastie, and Tibshirani, \emph{The Elements of Statistical Learning}
+  (2009), p.~306.}
+  \label{fig:cf-tree}
+\end{figure}
+
+In Figure~\ref{fig:cf-tree}, the top-left partition is not generally representable
+by recursive one-coordinate splits.  The top-right partition is; the bottom-left
+panel records the corresponding decision rules, and the bottom-right panel shows
+the fitted step function.
+
+\subsection{From a regression tree to a causal tree}
+\label{sec:cf-causal-tree}
+
+A causal tree targets the contrast in \eqref{eq:cf-identification}, not merely an
+outcome mean.  In a simple description, each proposed child node contains a treated
+mean and a control mean, and hence an estimated treatment effect.  A useful split is
+one for which the treatment-effect estimates differ substantially across the two
+children, subject to penalties for estimation noise and constraints ensuring that
+both treatment arms are represented.
+
+This description conveys the intuition, but production implementations use more
+carefully regularized splitting objectives than the raw squared difference between
+two noisy effect estimates.
+
+\subsection{Honesty}
+\label{sec:cf-honesty}
+
+If the same outcomes select the partition and estimate effects inside the selected
+leaves, the procedure can chase noise.  Conditional on the selected leaf, the
+within-leaf outcomes are no longer an ordinary, exogenously selected sample.
+\emph{Honesty} separates the two tasks:
+
+\begin{enumerate}
+  \item randomly divide a subsample into a splitting sample and an estimation
+  sample;
+  \item use only the splitting sample to construct the tree;
+  \item hold the partition fixed and use only the estimation sample to estimate
+  effects inside its leaves.
+\end{enumerate}
+
+Under suitable regularity conditions---including overlap, regular splits, growing
+leaf information, and smoothness---honest tree and forest estimators can be shown
+to be consistent and asymptotically normal.  These are asymptotic statements, not a
+claim of exact finite-sample unbiasedness.  Pointwise nonparametric rates are
+typically slower than the parametric $n^{-1/2}$ rate.
+
+\subsection{Causal forests}
+
+A single causal tree is unstable: a modest change in the data can alter an early
+split and therefore the entire partition.  A causal forest averages many randomized
+honest trees:
+
+\begin{enumerate}
+  \item draw a subsample of the observations;
+  \item grow an honest causal tree, usually considering a random subset of
+  covariates at each split;
+  \item repeat for $B$ trees;
+  \item average the $B$ tree predictions at the target $w$.
+\end{enumerate}
+
+Subsampling and random covariate selection make the trees less correlated; averaging
+then stabilizes the prediction.  Across trees, an observation may be used for
+splitting in some trees, effect estimation in others, and omitted from still others.
+
+Three tuning ideas are especially important:
+
+\begin{description}
+  \item[Covariate subsampling.] Considering only a random subset of the $p$
+  covariates at a split reduces computation and decorrelates the trees.  The
+  \texttt{grf} package chooses sensible defaults that can be tuned.
+  \item[Minimum leaf size.] Large leaves can smooth over real heterogeneity; tiny
+  leaves have noisy treated and control means.
+  \item[Balanced splits.] Each child needs enough observations, including enough
+  treated and control observations, for stable effect estimation and overlap.
+\end{description}
+
+\subsection{Why ordinary linear regression is not enough}
+
+Under complete randomization, the treatment coefficient in a short regression
+identifies the ATE even if the outcome model is nonlinear.  CATE is different: it is
+a function of $W$.  A linear interaction model such as
+\[
+  Y=\alpha+D\tau+W'\beta+D W'\delta+u
+\]
+restricts the CATE to $\tau+W'\delta$.  If the true CATE is nonlinear, this function
+is misspecified.  Moreover, under unconfoundedness $D$ may be related to $W$, so
+omitted nonlinear functions of $W$ can also confound treatment.  Causal forests
+allow flexible nonlinearities and interactions, though they do not remove the need
+for unconfoundedness and overlap.
+
+\section{Implementation with \texttt{grf}}
+\label{sec:cf-implementation}
+
+The next simulation has $n=2{,}000$, ten covariates, and a treatment probability
+that changes with $W_1$.  The outcome model is
+\[
+  Y=\max\{W_1,0\}D+W_2+\min\{W_3,0\}+\varepsilon,
+\]
+so the true CATE is $\tau(w)=\max\{w_1,0\}$.
+
+\begin{rcode}
+library(grf)
+library(DiagrammeR)
+
+set.seed(5280)
+n <- 2000
+p <- 10
+W <- matrix(rnorm(n * p), nrow = n, ncol = p)
+D <- rbinom(n, 1, 0.4 + 0.2 * (W[, 1] > 0))
+Y <- pmax(W[, 1], 0) * D + W[, 2] + pmin(W[, 3], 0) + rnorm(n)
+
+W_test <- matrix(0, nrow = 101, ncol = p)
+W_test[, 1] <- seq(-2, 2, length.out = 101)
+
+# A quick exploratory forest and one of its trees
+forest_quick <- causal_forest(W, Y, D)
+plot(get_tree(forest_quick, 1))
+
+# A larger forest for final estimates and variance estimates
+forest_full <- causal_forest(W, Y, D, num.trees = 4000)
+pred <- predict(forest_full, W_test, estimate.variance = TRUE)
+se <- sqrt(pred$variance.estimates)
+
+plot(W_test[, 1], pred$predictions,
+     ylim = range(pred$predictions - 1.96 * se,
+                  pred$predictions + 1.96 * se, 0, 2),
+     xlab = expression(W[1]), ylab = "CATE", type = "l")
+lines(W_test[, 1], pred$predictions + 1.96 * se, lty = 2)
+lines(W_test[, 1], pred$predictions - 1.96 * se, lty = 2)
+lines(W_test[, 1], pmax(W_test[, 1], 0), col = 2)
+legend("topleft", c("forest", "95% pointwise interval", "truth"),
+       lty = c(1, 2, 1), col = c(1, 1, 2), bty = "n")
+\end{rcode}
+
+Four thousand trees reduce Monte Carlo noise in variance estimates but can be slow
+in a browser.  The live companion uses fewer trees for a quick classroom
+demonstration; the substantive workflow should use more trees and check that results
+are stable as \texttt{num.trees} increases.
+
+We can also revisit the survey-wording experiment from
+Section~\ref{sec:rct-gss}.  Here the test grid fixes age at 30 and varies education.
+
+\begin{rcode}
+gss <- read.csv("data/welfare-small.csv")
+Y <- as.numeric(gss$Y)
+D <- as.numeric(gss$D)
+W <- as.matrix(gss[, c("age", "educ")])
+
+W_test <- cbind(age = 30,
+                educ = seq(min(gss$educ), max(gss$educ), by = 1))
+
+forest_gss <- causal_forest(W, Y, D, num.trees = 4000)
+pred_gss <- predict(forest_gss, W_test, estimate.variance = TRUE)
+se_gss <- sqrt(pred_gss$variance.estimates)
+
+plot(W_test[, "educ"], pred_gss$predictions,
+     ylim = range(pred_gss$predictions - 1.96 * se_gss,
+                  pred_gss$predictions + 1.96 * se_gss),
+     xlab = "Education", ylab = "Estimated CATE", type = "l")
+lines(W_test[, "educ"], pred_gss$predictions + 1.96 * se_gss, lty = 2)
+lines(W_test[, "educ"], pred_gss$predictions - 1.96 * se_gss, lty = 2)
+\end{rcode}
+
+The confidence limits above are pointwise.  They should not be interpreted as a
+simultaneous confidence band for the whole CATE curve.  In an observational
+application, predictive fit also cannot validate unconfoundedness.
+
+\section{Summary}
+
+\begin{itemize}
+  \item The CATE organizes treatment-effect heterogeneity by pre-treatment
+  characteristics, and averaging it recovers the ATE.
+  \item Unconfoundedness and overlap identify the CATE as a contrast of two
+  observable conditional means.
+  \item Conventional nonparametric methods face the curse of dimensionality; a
+  local estimator's standard error is typically of order $(nh^p)^{-1/2}$.
+  \item Causal trees learn adaptive regions targeted to treatment-effect
+  heterogeneity.  Honesty separates partition selection from effect estimation.
+  \item Causal forests average many randomized honest trees, improving stability
+  and permitting pointwise inference under regularity conditions.
+  \item Flexible algorithms do not make causal assumptions disappear: credible
+  unconfoundedness, overlap, SUTVA, and a clearly defined target population remain
+  essential.
+\end{itemize}

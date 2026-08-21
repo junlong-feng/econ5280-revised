@@ -1,0 +1,599 @@
+\chapter{Difference-in-Differences and Event Studies}
+\label{ch:did-event-study}
+\label{chap:did}
+
+\begin{description}
+  \item[Motivation.] Policies are often adopted at different times in different
+  places.  Can these timing differences reveal causal effects?
+  \item[Canonical DID.] Identify an ATT with two groups, two periods, and
+  parallel trends.
+  \item[Staggered adoption.] Define group--time effects when cohorts adopt in
+  different periods.
+  \item[Modern event studies.] Avoid already-treated controls, estimate
+  transparent effects first, and aggregate second.
+  \item[Credibility and inference.] Understand what pre-trends, confidence
+  bands, and clustered standard errors can and cannot establish.
+\end{description}
+
+\section{Motivation}
+
+Many important treatments in economics are policies rather than randomized
+experiments.  A housing subsidy, minimum-wage increase, or new technology may
+be introduced in one place before another.  A simple comparison between places
+with and without the policy is unlikely to be causal: adopters may have had
+different outcome levels before adoption.  A before--after comparison within
+adopters is also insufficient: inflation, interest rates, or a common boom may
+have changed outcomes even without the policy.
+
+Difference-in-differences (DID) combines both comparisons:
+\begin{enumerate}
+  \item calculate the change over time for the treated group;
+  \item calculate the change for an untreated comparison group; and
+  \item subtract the second change from the first.
+\end{enumerate}
+Permanent level differences disappear in the first difference.  Common time
+changes disappear in the second.  The remaining difference is causal under a
+parallel-trends assumption.
+
+\begin{example}[A two-by-two DID]
+Suppose average monthly rent is
+\begin{center}
+\begin{tabular}{lrrr}
+  \toprule
+  Group & Before & After & Change\\
+  \midrule
+  Cities adopting a subsidy & 120 & 134 & 14\\
+  Comparison cities         & 100 & 106 &  6\\
+  \bottomrule
+\end{tabular}
+\end{center}
+The DID is
+\[
+  (134-120)-(106-100)=14-6=8.
+\]
+Under parallel trends, 6 estimates how much rent would have risen in the
+adopting cities without the subsidy.  The remaining 8 is the estimated effect
+on those cities.
+\end{example}
+
+\section{Two groups and two periods}
+\label{sec:did-two-by-two}
+
+Let $t\in\{0,1\}$ and define
+\begin{itemize}
+  \item $G_i=1$ if unit $i$ belongs to the group treated beginning in period 1;
+  \item $G_i=0$ if it belongs to the never-treated control group; and
+  \item $D_{it}=G_i\1\{t=1\}$ as realized treatment status.
+\end{itemize}
+Let $Y_{it}(1)$ denote the potential outcome under the regime ``treated
+beginning in period 1'' and let $Y_{it}(0)$ denote the outcome under ``never
+treated.''  The observed regime is selected by group:
+\begin{equation}
+  Y_{it}=G_iY_{it}(1)+(1-G_i)Y_{it}(0).
+  \label{eq:did-observed-simple}
+\end{equation}
+The target is the post-treatment average effect on the treated,
+\begin{equation}
+  ATT=\E[Y_{i1}(1)-Y_{i1}(0)\mid G_i=1].
+  \label{eq:did-att-simple}
+\end{equation}
+DID most directly learns about the group that actually adopts.  The effect for
+a never-adopting group may differ and is not identified by the same comparison.
+
+\subsection{No anticipation}
+
+Before the policy begins, the future treatment regime should not yet affect the
+outcome:
+\begin{equation}
+  Y_{i0}(1)=Y_{i0}(0).
+  \label{eq:did-no-anticipation-simple}
+\end{equation}
+This can fail if firms hire in advance of an announced subsidy or households
+move before a program formally starts.  The last nominally pre-treatment period
+may then already be treated in an economic sense.
+
+\subsection{Parallel trends}
+
+The key identifying assumption is
+\begin{equation}
+  \E[Y_{i1}(0)-Y_{i0}(0)\mid G_i=1]
+  =\E[Y_{i1}(0)-Y_{i0}(0)\mid G_i=0].
+  \label{eq:did-parallel-simple}
+\end{equation}
+This assumption concerns \emph{changes}, not levels.  Treated and control
+groups may have different average outcomes before treatment, and selection on
+permanent group differences is allowed.  The assumption concerns the untreated
+potential outcome; after treatment, the treated group's counterfactual path is
+unobserved and cannot be checked directly.
+
+\subsection{Identification}
+
+Under no anticipation and parallel trends,
+\begin{align}
+  ATT
+  &=\E[Y_{i1}-Y_{i0}\mid G_i=1]
+    -\E[Y_{i1}(0)-Y_{i0}(0)\mid G_i=1]\notag\\
+  &=\E[Y_{i1}-Y_{i0}\mid G_i=1]
+    -\E[Y_{i1}-Y_{i0}\mid G_i=0].
+  \label{eq:did-identification-simple}
+\end{align}
+Every term in the final line is observed.  The sample estimator is
+\begin{equation}
+  \widehat{ATT}_{DID}
+  =(\bar Y_{11}-\bar Y_{10})-(\bar Y_{01}-\bar Y_{00}),
+  \label{eq:did-estimator-simple}
+\end{equation}
+where $\bar Y_{gt}$ is the sample mean for group $g$ in period $t$.  The order
+of differencing is immaterial:
+\[
+  (\bar Y_{11}-\bar Y_{10})-(\bar Y_{01}-\bar Y_{00})
+  =(\bar Y_{11}-\bar Y_{01})-(\bar Y_{10}-\bar Y_{00}).
+\]
+
+\subsection{Regression representation}
+
+With two groups and two periods, Equation~\eqref{eq:did-estimator-simple} is the
+OLS coefficient $\widehat\tau$ in
+\begin{equation}
+  Y_{it}=\beta_0+\beta_1G_i+\beta_2Post_t
+         +\tau(G_i\times Post_t)+\varepsilon_{it},
+  \label{eq:did-interaction-regression}
+\end{equation}
+where $Post_t=\1\{t=1\}$.  With panel data, the same coefficient comes from
+\begin{equation}
+  Y_{it}=\alpha_i+\lambda_t+\tau D_{it}+\varepsilon_{it},
+  \label{eq:did-twfe-simple}
+\end{equation}
+where $\alpha_i$ and $\lambda_t$ are unit and time fixed effects.  In this
+canonical setting, two-way fixed effects (TWFE) is simply another way to
+calculate DID.
+
+The same units are followed over time in panel data, whereas repeated cross
+sections sample different units in each period.  Both can identify ATT under
+appropriate sampling and parallel-trends assumptions.  Panel data are often
+more efficient because differencing removes permanent unit-specific noise.
+
+\section{Staggered treatment adoption}
+\label{sec:did-staggered}
+
+Now let $t=1,\ldots,T$.  Define $G_i=g$ if unit $i$ is first treated in period
+$g$, and $G_i=\infty$ if it is never treated.  In R code, never-treated units
+are usually recorded as $G_i=0$.  With absorbing treatment,
+\begin{equation}
+  D_{it}=\1\{t\geq G_i\}\quad\text{for eventually treated units},
+  \qquad D_{it}=0\quad\text{if }G_i=\infty.
+  \label{eq:did-staggered-status}
+\end{equation}
+Thus $D_{it}=1$ implies $D_{i,t+1}=1$.  A treatment that repeatedly switches
+on and off requires a different design or additional assumptions.
+
+Let $Y_{it}(g)$ be the outcome if unit $i$ is first treated in period $g$, and
+let $Y_{it}(0)$ be the never-treated outcome.  No anticipation requires
+\begin{equation}
+  Y_{it}(g)=Y_{it}(0),\qquad t<g.
+  \label{eq:did-no-anticipation-staggered}
+\end{equation}
+The natural causal building block is the group--time effect
+\begin{equation}
+  ATT(g,t)=\E[Y_{it}(g)-Y_{it}(0)\mid G_i=g],
+  \qquad t\geq g.
+  \label{eq:did-att-gt}
+\end{equation}
+$ATT(4,4)$ is the adoption-period effect for cohort 4; $ATT(4,6)$ is the effect
+two periods later for the same cohort; and $ATT(6,6)$ concerns another cohort
+in the same calendar period.  Policy effects can vary across all these cells.
+
+\subsection{Valid control groups}
+
+For $ATT(g,t)$, controls must be untreated in both the baseline $g-1$ and the
+comparison period $t$.  Two choices are common:
+\begin{description}
+  \item[Never-treated controls.] Compare cohort $g$ with units that never adopt.
+  \item[Not-yet-treated controls.] Compare cohort $g$ with units treated after
+  $t$, together with never-treated units.
+\end{description}
+The second choice uses more observations but assumes later adopters provide a
+valid counterfactual trend for earlier adopters.  This is an identification
+choice, not merely a software option.
+
+With never-treated controls, assume
+\begin{equation}
+  \E[Y_{it}(0)-Y_{i,g-1}(0)\mid G_i=g]
+  =\E[Y_{it}(0)-Y_{i,g-1}(0)\mid G_i=\infty].
+  \label{eq:did-pt-never}
+\end{equation}
+Then
+\begin{equation}
+  ATT(g,t)=
+  \E[Y_{it}-Y_{i,g-1}\mid G_i=g]
+  -\E[Y_{it}-Y_{i,g-1}\mid G_i=\infty].
+  \label{eq:did-id-never}
+\end{equation}
+For not-yet-treated controls, replace $G_i=\infty$ by $G_i>t$ in both displays,
+using the convention that $\infty>t$.  Each $ATT(g,t)$ is then a clean
+two-group, two-period DID.  Already-treated observations are not used as
+untreated controls.
+
+\subsection{Conditional parallel trends and overlap}
+
+Let $W_i$ contain pre-treatment covariates.  A conditional assumption for
+not-yet-treated controls is
+\begin{align}
+  &\E[Y_{it}(0)-Y_{i,g-1}(0)\mid G_i=g,W_i]\notag\\
+  &\qquad=\E[Y_{it}(0)-Y_{i,g-1}(0)\mid G_i>t,W_i].
+  \label{eq:did-conditional-pt}
+\end{align}
+Overlap requires controls at every covariate value represented in cohort $g$:
+\begin{equation}
+  \Pr(G_i>t\mid W_i=w)>0
+  \quad\text{for }w\in\operatorname{supp}(W_i\mid G_i=g).
+  \label{eq:did-overlap}
+\end{equation}
+Under these conditions,
+\begin{align}
+ ATT(g,t)=\E\Big[&
+   \E[Y_{it}-Y_{i,g-1}\mid G_i=g,W_i]
+   \notag\\[-2pt]
+ &-\E[Y_{it}-Y_{i,g-1}\mid G_i>t,W_i]
+   \ \Bigm|\ G_i=g\Big].
+ \label{eq:did-conditional-id}
+\end{align}
+Outcome regression estimates conditional control trends; propensity weighting
+reweights controls toward cohort $g$; and a doubly robust DID combines both.
+Under the relevant regularity conditions, a doubly robust estimator remains
+consistent if either the outcome-trend model or the generalized propensity
+model is correct.  Covariates should be measured before treatment, not caused
+by it.
+
+\section{Why conventional TWFE can fail}
+\label{sec:did-twfe-failure}
+
+With many periods, researchers often estimate
+\begin{equation}
+  Y_{it}=\alpha_i+\lambda_t+\beta D_{it}+u_{it}.
+  \label{eq:did-static-twfe}
+\end{equation}
+Under staggered adoption and heterogeneous effects, $\beta$ need not be an
+interpretable average treatment effect.
+
+Imagine an early-treated group E, a late-treated group L, and a never-treated
+group N.  When E is newly treated, L and N are untreated.  When L is newly
+treated, E is already treated.  Conventional TWFE can use all of the following:
+\begin{enumerate}
+  \item newly treated versus never treated;
+  \item newly treated versus not yet treated; and
+  \item newly treated versus already treated.
+\end{enumerate}
+The third comparison subtracts a change containing E's treatment-effect
+dynamics.  It is not L's untreated counterfactual trend.
+
+The Goodman--Bacon decomposition gives nonnegative weights to component
+two-by-two DID comparisons, but some components use already-treated controls.
+When the TWFE coefficient is instead written in terms of cohort--time treatment
+effects, implicit weights can be negative.  In extreme cases, every causal
+effect can be positive while the static TWFE coefficient is negative.
+
+\subsection{Conventional event-study regressions}
+
+A familiar dynamic regression is
+\begin{equation}
+  Y_{it}=\alpha_i+\lambda_t+
+  \sum_{e\neq-1}\mu_e\1\{t-G_i=e\}+u_{it},
+  \label{eq:did-conventional-event-study}
+\end{equation}
+where $e=t-G_i$ is event time and $e=-1$ is omitted.  With staggered timing and
+heterogeneous effects, $\mu_e$ can be contaminated by effects at other event
+times.  Even a lead can be nonzero because of post-treatment heterogeneity
+rather than a genuine pre-trend.  Adding leads and lags to TWFE does not by
+itself repair the control-group problem.
+
+Fixed effects remain useful.  TWFE equals DID in the canonical two-by-two
+design; a single treated cohort with a valid never-treated group avoids
+already-treated controls; and a homogeneous common-effect model can justify a
+static coefficient.  The lesson is to define the causal parameter and valid
+controls before running the regression.
+
+\section{Modern DID and event studies}
+\label{sec:did-modern}
+
+\begin{important}
+Estimate transparent cohort--time causal effects using untreated controls, and
+only then aggregate them into the summary required by the empirical question.
+\end{important}
+
+The Callaway--Sant'Anna approach estimates the collection of $ATT(g,t)$ values
+using clean comparisons.  Depending on the design and covariates, each cell can
+be estimated by differences in outcome changes, outcome regression, inverse
+probability weighting, or doubly robust DID.
+
+\subsection{Aggregating group--time effects}
+
+One overall summary is
+\begin{equation}
+  \theta^{overall}=\sum_g\sum_{t\geq g}
+  \omega_{g,t}ATT(g,t),
+  \qquad \omega_{g,t}\geq0,\quad
+  \sum_{g,t}\omega_{g,t}=1.
+  \label{eq:did-overall-aggregation}
+\end{equation}
+Other summaries average within adoption cohort or within calendar period.  They
+answer different questions.  Software cannot decide which is economically
+relevant.
+
+In the \texttt{did} package, \texttt{type = "simple"} weights post-treatment
+cells in proportion to cohort size, so early cohorts receive more total weight
+because they contribute more cells.  \texttt{type = "group"} first averages
+post-treatment effects within cohort.  \texttt{type = "dynamic"} averages
+contributing cohorts at each event time, using cohort-size weights.
+
+For event time $e=t-g$, define
+\begin{equation}
+  \theta(e)=\sum_{g:g+e\leq T}
+  \Pr(G_i=g\mid G_i+e\leq T)ATT(g,g+e).
+  \label{eq:did-dynamic-aggregation}
+\end{equation}
+For $e\geq0$, this is the average effect after $e$ periods of exposure among
+cohorts observed at that horizon.  At long horizons only early adopters remain,
+so a changing curve can reflect both genuine dynamics and changing cohort
+composition.  A balanced event window holds the contributing cohorts fixed,
+improving comparability at the cost of discarding data.
+
+Other modern approaches implement a similar principle in different ways:
+\begin{description}
+  \item[Sun--Abraham.] Estimate cohort-by-event-time interactions and aggregate
+  them without contamination from other event times.
+  \item[Borusyak--Jaravel--Spiess.] Fit an untreated-outcome model using
+  untreated observations, impute untreated counterfactuals for treated cells,
+  and average the resulting effects.
+  \item[Group--time DID.] Construct clean two-by-two comparisons for each
+  $(g,t)$ and then aggregate.
+\end{description}
+These methods can target different parameters and maintain different outcome,
+comparison-group, or covariate models.  They are not interchangeable commands.
+
+\section{Credibility and inference}
+\label{sec:did-inference}
+
+Modern event studies often report placebo or pseudo-ATT estimates before
+treatment.  Large, systematic pre-treatment differences weigh against the
+proposed parallel-trends design.  Estimates near zero do not prove it:
+\begin{itemize}
+  \item pre-treatment estimates may be noisy and have low power;
+  \item paths may be parallel before treatment but diverge afterward;
+  \item choosing a specification because its pre-trend test is insignificant
+        changes the statistical behavior of the final estimates; and
+  \item the assumption concerns an unobserved post-treatment counterfactual.
+\end{itemize}
+Pre-trends are a diagnostic, not a certificate of validity.
+
+An event study reports many coefficients.  Pointwise 95\% intervals cover each
+coefficient separately, not the complete curve jointly.  For statements such
+as ``all pre-treatment effects are zero,'' simultaneous confidence bands are
+preferable.  Modern DID packages can obtain uniform bands by multiplier
+bootstrap.
+
+Outcomes from the same unit are dependent over time.  When treatment is assigned
+at a higher level, observations may also be dependent within that assignment
+cluster.  With state-level policies, cluster at the state level rather than the
+individual level.  With few clusters, ordinary cluster-robust approximations
+may be unreliable.  The clustering level follows treatment assignment and the
+dependence structure, not the number of rows.
+
+\subsection{A design checklist}
+
+Before estimating a staggered DID, ask:
+\begin{enumerate}
+  \item What is the unit, and when is it first treated?
+  \item Is treatment absorbing, or can it turn off?
+  \item Could units anticipate treatment?
+  \item Which observations are valid controls for each cohort and period?
+  \item Is parallel trends more plausible conditionally on pre-treatment
+        covariates?
+  \item Is the target group--time, dynamic, calendar-time, or overall ATT?
+  \item Does cohort composition change across the event window?
+  \item At what level should inference be clustered?
+  \item Do other policies or shocks occur at the same time?
+  \item Are conclusions robust to outcome scale, sample window, control group,
+        and anticipation window?
+\end{enumerate}
+
+\section{R implementation}
+\label{sec:did-r}
+
+We simulate a balanced panel in which cohorts are first treated in periods 4,
+6, or 8, while some units are never treated.  Treatment effects grow with
+exposure and differ across cohorts---exactly the setting in which conventional
+TWFE can be hard to interpret.
+
+\subsection{Generate the panel}
+
+\begin{rcode}
+set.seed(5280)
+N <- 600
+TT <- 10
+
+units <- data.frame(
+  id = 1:N,
+  G = sample(c(0, 4, 6, 8), N, replace = TRUE,
+             prob = c(0.30, 0.25, 0.25, 0.20)),
+  alpha = rnorm(N),
+  W = rnorm(N)
+)
+
+data <- merge(expand.grid(id = 1:N, t = 1:TT), units,
+              by = "id", sort = TRUE)
+data$D <- as.integer(data$G > 0 & data$t >= data$G)
+data$event_time <- ifelse(data$G > 0, data$t - data$G, NA)
+
+data$cohort_scale <- ifelse(data$G == 4, 1.50,
+                     ifelse(data$G == 6, 1.00,
+                     ifelse(data$G == 8, 0.60, 0)))
+data$tau <- ifelse(data$D == 1,
+                   data$cohort_scale * (1 + 0.5 * data$event_time), 0)
+
+data$lambda <- 0.25 * data$t + 0.03 * data$t^2
+data$Y0 <- data$alpha + data$lambda + 0.5 * data$W +
+           rnorm(nrow(data))
+data$Y <- data$Y0 + data$tau
+\end{rcode}
+
+Untreated outcomes satisfy parallel trends by construction.  The treatment
+effect is positive but heterogeneous across cohorts and exposure lengths.
+
+\subsection{Calculate one group--time DID by hand}
+
+\begin{rcode}
+simple_att_gt <- function(data, g, t) {
+  stopifnot(t >= g)
+  base <- g - 1
+
+  now <- data[data$t == t, c("id", "G", "Y")]
+  names(now)[names(now) == "Y"] <- "Y_now"
+  before <- data[data$t == base, c("id", "Y")]
+  names(before)[names(before) == "Y"] <- "Y_before"
+
+  change <- merge(now, before, by = "id")
+  change$dY <- change$Y_now - change$Y_before
+  treated <- change$G == g
+  controls <- change$G == 0 | change$G > t
+
+  mean(change$dY[treated]) - mean(change$dY[controls])
+}
+
+simple_att_gt(data, g = 4, t = 6)
+mean(data$tau[data$G == 4 & data$t == 6])
+\end{rcode}
+
+The two numbers should be close.  The second is available only because the DGP
+is known; in real data it is the unobserved causal parameter.
+
+\subsection{Callaway--Sant'Anna group--time effects}
+
+\begin{rcode}
+library(did)
+
+att <- att_gt(
+  yname = "Y", tname = "t", idname = "id", gname = "G",
+  xformla = ~ 1, data = data, panel = TRUE,
+  control_group = "notyettreated", est_method = "dr",
+  base_period = "universal", clustervars = "id",
+  bstrap = TRUE, cband = TRUE,
+  biters = 199                 # short browser demonstration only
+)
+
+summary(att)
+ggdid(att)
+\end{rcode}
+
+With \texttt{xformla = \textasciitilde{} 1}, the built-in outcome-regression,
+IPW, and doubly robust implementations have the same unconditional two-by-two
+DID point estimates.  Replace it by, for example,
+\texttt{\textasciitilde{} W} for a conditional design.
+
+The universal base period uses $g-1$ throughout and normalizes event time $-1$
+to zero.  The varying-base default leaves post-treatment effects unchanged but
+uses adjacent-period comparisons for pre-treatment pseudo-ATTs.  The multiplier
+bootstrap creates simultaneous bands.  We use only 199 repetitions to keep a
+live classroom run short; use at least 999, and often more, for final empirical
+inference.  If treatment is assigned above the unit level, specify the relevant
+assignment cluster.  For panel data, \texttt{did} permits at most two cluster
+variables and requires one to be the unit identifier.
+
+\subsection{Aggregate the effects}
+
+\begin{rcode}
+overall <- aggte(att, type = "simple")
+by_group <- aggte(att, type = "group")
+dynamic <- aggte(att, type = "dynamic", min_e = -3, max_e = 4)
+
+summary(overall)
+summary(by_group)
+summary(dynamic)
+ggdid(dynamic)
+
+dynamic_balanced <- aggte(
+  att, type = "dynamic",
+  min_e = -3, max_e = 3,
+  balance_e = 3
+)
+summary(dynamic_balanced)
+ggdid(dynamic_balanced)
+\end{rcode}
+
+The \texttt{simple}, \texttt{group}, and \texttt{dynamic} outputs answer
+different questions and need not be numerically equal.
+
+\subsection{Conventional and interaction-weighted event studies}
+
+\begin{rcode}
+library(fixest)
+
+data$ever_treated <- as.integer(data$G > 0)
+data$event_twfe <- ifelse(data$G > 0, data$t - data$G, 0)
+
+twfe_event <- feols(
+  Y ~ i(event_twfe, ever_treated, ref = -1) | id + t,
+  data = data, cluster = ~ id
+)
+
+# A cohort outside the observed period range is treated as never treated.
+data$G_sunab <- ifelse(data$G == 0, 1000, data$G)
+sa_event <- feols(
+  Y ~ sunab(G_sunab, t, ref.p = -1) | id + t,
+  data = data, cluster = ~ id
+)
+
+iplot(list("Conventional TWFE" = twfe_event,
+           "Sun--Abraham" = sa_event),
+      ref.line = -1, main = "Event-study estimates")
+\end{rcode}
+
+The \texttt{fixest::iplot()} intervals here are pointwise.  They are not the
+multiplier-bootstrap simultaneous bands shown by \texttt{ggdid()}.
+
+The companion page pins WebR 0.5.9 (R 4.5), for which the WebAssembly builds of
+\texttt{did}, its \texttt{fastglm} dependency, and \texttt{fixest} are mutually
+compatible.  This is a runtime compatibility pin, not an econometric choice.
+
+\section*{Summary}
+
+\begin{itemize}
+  \item DID compares outcome changes, not outcome levels.
+  \item No anticipation and parallel trends for untreated potential outcomes
+        identify the canonical two-by-two ATT.
+  \item Under staggered adoption, $ATT(g,t)$ is the transparent causal building
+        block; never-treated or not-yet-treated units can be controls.
+  \item Conventional static and dynamic TWFE can be contaminated by
+        already-treated comparisons when effects are heterogeneous.
+  \item Modern procedures estimate valid cohort--time comparisons first and
+        aggregate them second.
+  \item Pre-trends, aggregation, cohort composition, anticipation, covariates,
+        and clustering are substantive design choices.
+\end{itemize}
+
+\section*{Further reading}
+
+\begin{itemize}
+  \raggedright
+  \item Callaway and Sant'Anna (2021), ``Difference-in-Differences with Multiple
+  Time Periods,'' \emph{Journal of Econometrics},
+  \url{https://doi.org/10.1016/j.jeconom.2020.12.001}.
+  \item Sun and Abraham (2021), ``Estimating Dynamic Treatment Effects in Event
+  Studies with Heterogeneous Treatment Effects,'' \emph{Journal of
+  Econometrics}, \url{https://doi.org/10.1016/j.jeconom.2020.09.006}.
+  \item Goodman-Bacon (2021), ``Difference-in-Differences with Variation in
+  Treatment Timing,'' \emph{Journal of Econometrics},
+  \url{https://doi.org/10.1016/j.jeconom.2021.03.014}.
+  \item Borusyak, Jaravel, and Spiess (2024), ``Revisiting Event-Study Designs:
+  Robust and Efficient Estimation,'' \emph{Review of Economic Studies},
+  \url{https://doi.org/10.1093/restud/rdae007}.
+  \item Roth, Sant'Anna, Bilinski, and Poe (2023), ``What's Trending in
+  Difference-in-Differences?,'' \emph{Journal of Econometrics},
+  \url{https://doi.org/10.1016/j.jeconom.2023.03.008}.
+  \item Sant'Anna and Zhao (2020), ``Doubly Robust Difference-in-Differences
+  Estimators,'' \emph{Journal of Econometrics},
+  \url{https://doi.org/10.1016/j.jeconom.2020.06.003}.
+  \item Rambachan and Roth (2023), ``A More Credible Approach to Parallel
+  Trends,'' \emph{Review of Economic Studies},
+  \url{https://doi.org/10.1093/restud/rdad018}.
+\end{itemize}

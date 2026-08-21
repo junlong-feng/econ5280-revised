@@ -1,0 +1,244 @@
+---
+title: "Chapter 5: Causal Inference and Randomized Controlled Trials"
+format:
+  live-html:
+    toc: true
+    toc-depth: 3
+resources:
+  - ../data/welfare-small.csv
+webr:
+  resources:
+    - ../data/welfare-small.csv
+  packages:
+    - lmtest
+    - sandwich
+---
+
+## Outline
+
+This chapter introduces potential outcomes, the average treatment effect (ATE),
+randomized controlled trials, the difference in means, and regression adjustment.
+The code cells run in your browser through WebR; no local R installation or remote
+R session is required.
+
+## 1. Potential outcomes
+
+For individual $i$, let $D_i\in\{0,1\}$ denote treatment and let $Y_i(d)$
+denote the outcome that would be observed under treatment status $d$. The observed
+outcome obeys consistency:
+
+$$
+Y_i=Y_i(D_i)=D_iY_i(1)+(1-D_i)Y_i(0).
+$$
+
+This notation also presumes a well-defined treatment and no interference between
+individuals. Together these conditions are usually grouped under SUTVA.
+
+The individual effect $Y_i(1)-Y_i(0)$ is normally unobservable because we see only
+one potential outcome for each person. This is the fundamental problem of causal
+inference. We therefore begin with
+
+$$
+\tau=\operatorname{ATE}
+=\mathbb E[Y_i(1)-Y_i(0)].
+$$
+
+## 2. Randomization and identification
+
+In a simple randomized experiment,
+
+$$
+D_i\perp\!\!\!\perp (Y_i(1),Y_i(0)),
+\qquad \Pr(D_i=1)=\pi\in(0,1).
+$$
+
+Randomization and consistency imply
+
+$$
+\begin{aligned}
+\tau
+&=\mathbb E[Y_i(1)]-\mathbb E[Y_i(0)]\\
+&=\mathbb E[Y_i(1)\mid D_i=1]-\mathbb E[Y_i(0)\mid D_i=0]\\
+&=\mathbb E[Y_i\mid D_i=1]-\mathbb E[Y_i\mid D_i=0].
+\end{aligned}
+$$
+
+The last line identifies a causal parameter using the distribution of observed
+variables.
+
+## 3. Difference in means
+
+The sample analogue is
+
+$$
+\widehat\tau_{\mathrm{DM}}
+=\frac{1}{n_1}\sum_{i:D_i=1}Y_i
+-\frac{1}{n_0}\sum_{i:D_i=0}Y_i.
+$$
+
+It is exactly the OLS slope from a regression of $Y$ on an intercept and $D$.
+Under Bernoulli assignment,
+
+$$
+\sqrt n(\widehat\tau_{\mathrm{DM}}-\tau)
+\overset{d}{\longrightarrow}
+N\!\left(0,
+\frac{\operatorname{Var}(Y_i(1))}{\pi}
++\frac{\operatorname{Var}(Y_i(0))}{1-\pi}
+\right).
+$$
+
+Use a heteroskedasticity-robust standard error because the two treatment arms need
+not have the same outcome variance.
+
+### Survey-wording experiment
+
+Respondents in a simplified General Social Survey experiment were randomly asked
+whether the government spends too much on either "welfare" ($D=1$) or "assistance
+to the poor" ($D=0$). The outcome equals one for a "yes" response.
+
+```{webr}
+library(lmtest)
+library(sandwich)
+
+gss <- read.csv("data/welfare-small.csv")
+Y <- gss$Y
+D <- gss$D
+
+tau_dm <- mean(Y[D == 1]) - mean(Y[D == 0])
+tau_dm
+
+fit_dm <- lm(Y ~ D)
+coeftest(fit_dm, vcov. = vcovHC(fit_dm, type = "HC2"))
+```
+
+The direct difference and the coefficient on `D` are numerically identical.
+
+## 4. Regression adjustment
+
+Let $W_i$ contain pre-treatment covariates and suppose assignment is independent
+of potential outcomes and these covariates:
+
+$$
+D_i\perp\!\!\!\perp (Y_i(1),Y_i(0),W_i).
+$$
+
+Adjustment is unnecessary for identification but can improve precision. A robust
+default centers the covariates and allows their slopes to differ by arm:
+
+$$
+Y_i=\alpha+\tau D_i+(W_i-\bar W)'\beta_0
++D_i(W_i-\bar W)'(\beta_1-\beta_0)+u_i.
+$$
+
+The coefficient on $D_i$ compares the fitted treatment and control outcomes at
+the overall covariate mean. It consistently estimates the ATE even when the fitted
+linear outcome regressions are not the true conditional means. It need not be
+exactly unbiased in a finite sample, so use a robust standard error and understand
+the guarantee as asymptotic.
+
+### Why interactions matter for the variance argument
+
+Let $X_i=W_i-\mathbb E[W_i]$,
+$\Sigma=\mathbb E[X_iX_i']$, and define the separate arm slopes
+
+$$
+\gamma_d=\Sigma^{-1}
+\mathbb E\!\left[X_i\{Y_i(d)-\mathbb E[Y_i(d)]\}\right].
+$$
+
+For $r_i(d)=Y_i(d)-\mathbb E[Y_i(d)]-X_i'\gamma_d$, the projection normal
+equations imply
+
+$$
+\operatorname{Var}(Y_i(d))
+=\operatorname{Var}(r_i(d))+\gamma_d'\Sigma\gamma_d.
+$$
+
+Because the adjusted contrast is evaluated at the overall sample covariate mean,
+sampling variation in that mean also matters when the two arm-specific slopes
+differ. The fully interacted estimator has asymptotic variance
+
+$$
+V_{\mathrm{RA}}
+=\frac{\operatorname{Var}(r_i(1))}{\pi}
++\frac{\operatorname{Var}(r_i(0))}{1-\pi}
++(\gamma_1-\gamma_0)'\Sigma(\gamma_1-\gamma_0),
+$$
+
+and therefore
+
+$$
+V_{\mathrm{DM}}-V_{\mathrm{RA}}
+=\left\{
+\sqrt{\frac{1-\pi}{\pi}}\gamma_1
++\sqrt{\frac{\pi}{1-\pi}}\gamma_0
+\right\}'
+\Sigma
+\left\{
+\sqrt{\frac{1-\pi}{\pi}}\gamma_1
++\sqrt{\frac{\pi}{1-\pi}}\gamma_0
+\right\}
+\geq0.
+$$
+
+This proof does **not** assume that a covariance conditional on $D=1$ equals the
+corresponding covariance conditional on $D=0$. An un-interacted adjustment remains
+consistent under randomization, but with unequal assignment probabilities and
+different arm-specific slopes it lacks the same general no-loss-of-precision
+guarantee.
+
+```{webr}
+covariates <- c("age", "polviews", "income", "educ", "marital", "sex")
+gss_c <- gss
+gss_c[covariates] <- lapply(gss[covariates], function(x) x - mean(x))
+
+fit_ra <- lm(
+  Y ~ D * (age + polviews + income + educ + marital + sex),
+  data = gss_c
+)
+coeftest(fit_ra, vcov. = vcovHC(fit_ra, type = "HC2"))["D", ]
+```
+
+Only pre-treatment covariates belong in this adjustment. Conditioning on a variable
+caused by treatment can change the estimand and introduce bias.
+
+### Monte Carlo illustration
+
+In the next nonlinear model, $W\sim N(2,1)$, treatment is randomized, and the true
+ATE is $1+\mathbb E[W^2]=6$. The live example uses 100 replications so that it
+finishes quickly during class; increase `B` for a more stable Monte Carlo study.
+
+```{webr}
+set.seed(5280)
+n <- 1000
+B <- 100                    # classroom setting; use 500+ offline
+tau_dm_mc <- numeric(B)
+tau_ra_mc <- numeric(B)
+
+for (b in seq_len(B)) {
+  W <- rnorm(n, 2, 1)
+  D <- rbinom(n, 1, 0.5)
+  e <- rnorm(n)
+  Y <- 1 + D + W^2 * D + exp(W) + e
+
+  tau_dm_mc[b] <- coef(lm(Y ~ D))["D"]
+  Wc <- W - mean(W)
+  tau_ra_mc[b] <- coef(lm(Y ~ D * Wc))["D"]
+}
+
+rbind(
+  mean = c(DM = mean(tau_dm_mc), adjusted = mean(tau_ra_mc)),
+  variance = c(DM = var(tau_dm_mc), adjusted = var(tau_ra_mc))
+)
+```
+
+## Summary
+
+- Randomization identifies the ATE as a difference in observable means.
+- The difference in means is exactly the treatment coefficient in the short OLS
+  regression.
+- Centered, fully interacted regression adjustment can improve precision without
+  requiring the linear working models to be correct.
+- SUTVA, randomized treatment, appropriate moments, and a nonsingular covariate
+  second-moment matrix remain substantive requirements.

@@ -1,0 +1,277 @@
+---
+title: "Chapter 7: Doubly Robust Learning"
+format:
+  live-html:
+    toc: true
+    toc-depth: 3
+webr:
+  packages:
+    - lmtest
+    - sandwich
+    - grf
+---
+
+## Outline
+
+Under unconfoundedness, ordinary least squares need not estimate the ATE. This
+chapter combines outcome regression with inverse propensity weighting to obtain the
+augmented inverse propensity weighted (AIPW) score. Cross-fitting then allows us to
+use flexible nuisance-function estimates while retaining root-$n$ inference under
+appropriate rate and overlap conditions.
+
+## 1. ATE under unconfoundedness
+
+Maintain consistency, i.i.d. sampling,
+
+$$
+D_i\perp\!\!\!\perp (Y_i(1),Y_i(0))\mid W_i,
+$$
+
+and overlap. Define
+
+$$
+\mu_d(w)=\mathbb E[Y_i\mid D_i=d,W_i=w],
+\qquad
+e(w)=\Pr(D_i=1\mid W_i=w).
+$$
+
+Then
+
+$$
+\tau=\operatorname{ATE}
+=\mathbb E[\mu_1(W_i)-\mu_0(W_i)].
+$$
+
+### Why an arbitrary OLS model can fail
+
+In the simulation below, treatment depends on $W$, although it is random
+conditional on $W$. The individual effect is $1+W^2$, so the true ATE is 2.
+Both displayed regressions omit treatment-related nonlinear functions.
+
+```{webr}
+library(lmtest)
+library(sandwich)
+
+set.seed(5280)
+n <- 5000
+W <- rnorm(n)
+V <- rnorm(n)
+D <- as.integer(W + V > 0)
+epsilon <- rnorm(n)
+Y <- 1 + D + W + D * W^2 + sin(W) + epsilon
+
+fit_short <- lm(Y ~ D)
+fit_linear <- lm(Y ~ D + W)
+rbind(
+  short = coeftest(fit_short, vcov. = vcovHC(fit_short, type = "HC2"))["D", ],
+  linear = coeftest(fit_linear, vcov. = vcovHC(fit_linear, type = "HC2"))["D", ]
+)
+```
+
+Identification of the ATE does not make an arbitrary linear working model correct.
+
+## 2. The propensity score and IPW
+
+The propensity score $e(W)$ summarizes how covariates predict treatment.
+Rosenbaum and Rubin's balancing-score theorem says that unconfoundedness given $W$
+implies
+
+$$
+D_i\perp\!\!\!\perp(Y_i(1),Y_i(0))\mid e(W_i).
+$$
+
+For $Z_i=(Y_i(1),Y_i(0))$, the key calculation is
+
+$$
+\begin{aligned}
+\Pr(D_i=1\mid Z_i,e(W_i))
+&=\mathbb E[\mathbb E(D_i\mid Z_i,W_i)\mid Z_i,e(W_i)]\\
+&=\mathbb E[e(W_i)\mid Z_i,e(W_i)]\\
+&=e(W_i)
+=\Pr(D_i=1\mid e(W_i)).
+\end{aligned}
+$$
+
+The ATE also satisfies
+
+$$
+\tau
+=\mathbb E\!\left[
+\frac{D_iY_i}{e(W_i)}
+-\frac{(1-D_i)Y_i}{1-e(W_i)}
+\right].
+$$
+
+For example,
+
+$$
+\begin{aligned}
+\mathbb E\!\left[\frac{D_iY_i}{e(W_i)}\right]
+&=\mathbb E\!\left[
+\frac{\mathbb E[D_iY_i(1)\mid W_i]}{e(W_i)}
+\right]\\
+&=\mathbb E[Y_i(1)].
+\end{aligned}
+$$
+
+Unconfoundedness factors the conditional expectation in the second step. Overlap is
+needed for the denominators, and near-zero denominators explain why IPW can be
+unstable even when it is identified.
+
+## 3. AIPW and double robustness
+
+For generic outcome regressions $m_1,m_0$ and propensity function $q$, define
+
+$$
+\begin{aligned}
+\psi(O_i;m_1,m_0,q)
+={}&m_1(W_i)-m_0(W_i)\\
+&+\frac{D_i\{Y_i-m_1(W_i)\}}{q(W_i)}
+-\frac{(1-D_i)\{Y_i-m_0(W_i)\}}{1-q(W_i)}.
+\end{aligned}
+$$
+
+At the true nuisance functions, the oracle AIPW estimator averages these scores.
+The score has two useful forms.
+
+### Outcome-regression form
+
+If $m_d=\mu_d$, then
+
+$$
+\mathbb E\!\left[
+\frac{D_i\{Y_i-\mu_1(W_i)\}}{q(W_i)}\Bigm|W_i
+\right]=0
+$$
+
+for any admissible $q$, and similarly for controls. The outcome-regression part
+therefore identifies the ATE even if the propensity model is wrong.
+
+### IPW form
+
+Algebra also gives
+
+$$
+\begin{aligned}
+\psi(O_i;m_1,m_0,q)
+={}&\frac{D_iY_i}{q(W_i)}
+-\frac{(1-D_i)Y_i}{1-q(W_i)}\\
+&+m_1(W_i)\left\{1-\frac{D_i}{q(W_i)}\right\}
+-m_0(W_i)\left\{1-\frac{1-D_i}{1-q(W_i)}\right\}.
+\end{aligned}
+$$
+
+If $q=e$, then
+
+$$
+\mathbb E\!\left[1-\frac{D_i}{e(W_i)}\Bigm|W_i\right]=0,
+\qquad
+\mathbb E\!\left[1-\frac{1-D_i}{1-e(W_i)}\Bigm|W_i\right]=0.
+$$
+
+The conditioning on $W_i$ matters: an unconditional mean-zero equality alone
+would not justify multiplying the term by an arbitrary function of $W_i$.
+
+Subject to regularity conditions, the feasible AIPW estimator is consistent if
+either both outcome regressions are consistently estimated or the propensity score
+is consistently estimated. This is **double robustness**. It does not protect
+against failures of unconfoundedness, overlap, consistency, or sampling assumptions.
+
+## 4. Cross-fitting and double machine learning
+
+To prevent own-observation overfitting, partition the sample into folds
+$I_1,\ldots,I_K$. For each fold:
+
+1. estimate $\mu_1,\mu_0,e$ using all other folds;
+2. evaluate those functions and the AIPW score on the held-out fold;
+3. average all held-out scores.
+
+The resulting estimator is
+
+$$
+\widehat\tau_{\mathrm{DML}}
+=\frac1n\sum_{k=1}^K\sum_{i\in I_k}
+\psi\!\left(O_i;
+\widehat\mu_1^{(-k)},\widehat\mu_0^{(-k)},\widehat e^{(-k)}
+\right).
+$$
+
+The AIPW score is orthogonal: small nuisance errors have no first-order effect on
+its population expectation. A typical sufficient product-rate condition is
+
+$$
+\|\widehat e-e\|_2
+\left(\|\widehat\mu_1-\mu_1\|_2+
+\|\widehat\mu_0-\mu_0\|_2\right)
+=o_p(n^{-1/2}).
+$$
+
+If the two relevant mean-squared errors have orders $n^{-a}$ and $n^{-b}$,
+their $L^2$ errors have orders $n^{-a/2}$ and $n^{-b/2}$. Exact big-$O$
+rates therefore require $a+b>1$; the equality case needs a stronger little-$o$
+condition. One should not compare nuisance variances directly without taking square
+roots and forming the product remainder.
+
+Under strong overlap, suitable moments, nuisance consistency, and the product-rate
+condition,
+
+$$
+\sqrt n(\widehat\tau_{\mathrm{DML}}-\tau)
+\overset{d}{\longrightarrow}N(0,V_{\mathrm{eff}}).
+$$
+
+The centered true AIPW score is the efficient influence function for the ATE in the
+nonparametric unconfoundedness model. The resulting efficiency statement concerns
+regular estimators asymptotically; it does not say AIPW has the smallest variance in
+every finite sample.
+
+## 5. Implementation with `grf`
+
+The `grf` implementation uses out-of-bag nuisance predictions to construct an
+orthogonalized AIPW estimate. In the model below the true ATE is
+$\mathbb E[\max\{W_1,0\}]=1/\sqrt{2\pi}\approx0.399$.
+
+The PDF's substantive code uses $n=2{,}000$ and 4,000 trees. The live cell uses
+$n=1{,}000$ and 500 trees for classroom speed. Increase the number of trees and
+check stability in final work.
+
+```{webr}
+library(grf)
+
+set.seed(5280)
+n <- 1000                    # classroom setting; PDF uses 2000
+p <- 10
+W <- matrix(rnorm(n * p), nrow = n, ncol = p)
+D <- rbinom(n, 1, 0.4 + 0.2 * (W[, 1] > 0))
+Y <- pmax(W[, 1], 0) * D + W[, 2] + pmin(W[, 3], 0) + rnorm(n)
+
+forest_live <- causal_forest(W, Y, D, num.trees = 500)
+ate_live <- average_treatment_effect(
+  forest_live,
+  target.sample = "all",
+  method = "AIPW"
+)
+
+c(estimate = unname(ate_live["estimate"]),
+  std.error = unname(ate_live["std.err"]),
+  truth = 1 / sqrt(2 * pi))
+```
+
+In applied work, inspect estimated propensities and sensitivity to tuning. Extreme
+propensities can produce noisy scores despite double robustness. If overlap is poor,
+changing the target population, using a pre-specified trimming rule, or obtaining
+better comparison data may be preferable to relying on enormous weights.
+
+## Summary
+
+- The ATE has both outcome-regression and IPW representations under
+  unconfoundedness and overlap.
+- Arbitrary OLS specifications need not estimate the ATE when treatment depends on
+  covariates.
+- AIPW is consistent if either the outcome-regression pair or the propensity score
+  is consistently estimated, subject to regularity conditions.
+- Cross-fitting makes orthogonal scores compatible with flexible nuisance learners.
+- Root-$n$ inference requires strong overlap, nuisance consistency, and a product
+  of nuisance errors that is $o_p(n^{-1/2})$.
+- Statistical robustness cannot repair a failure of the causal identification
+  assumptions.

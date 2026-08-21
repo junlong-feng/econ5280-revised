@@ -1,0 +1,25 @@
+# LaTeX intermediates
+latex/*.aux
+latex/*.bbl
+latex/*.bcf
+latex/*.blg
+latex/*.fdb_latexmk
+latex/*.fls
+latex/*.log
+latex/*.out
+latex/*.run.xml
+latex/*.toc
+latex/*.lof
+latex/*.lot
+latex/*.pdf
+latex/chapters/*.aux
+latex/appendices/*.aux
+
+# Rendered Quarto site
+live/.quarto/
+live/_site/
+
+# Local editor and operating-system files
+.DS_Store
+*.swp
+

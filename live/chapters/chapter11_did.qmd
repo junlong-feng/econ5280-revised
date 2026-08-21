@@ -1,0 +1,201 @@
+---
+title: "Chapter 11: Difference-in-Differences and Event Studies"
+format:
+  live-html:
+    toc: true
+    toc-depth: 3
+webr:
+  engine-url: https://webr.r-wasm.org/v0.5.9/
+  packages:
+    - did
+    - fastglm
+    - fixest
+---
+
+## Runtime note
+
+This chapter pins WebR 0.5.9 (R 4.5). That runtime has a mutually compatible
+WebAssembly package chain for `did`, its `fastglm` dependency, and `fixest`.
+R runs inside the browser; no local installation or Binder session is needed.
+
+The live settings are intentionally small: 400 units and 99 multiplier-
+bootstrap repetitions. They are appropriate for a quick classroom
+demonstration, **not** final empirical inference. For an actual project, use a
+native R environment, restore the full sample, and use at least 999 bootstrap
+repetitions (often more after checking simulation or Monte Carlo error).
+
+## Generate staggered-adoption panel data
+
+Some units first adopt in periods 4, 6, or 8; others never adopt (`G = 0`).
+Effects grow with exposure time and differ by cohort.
+
+```{webr}
+set.seed(5280)
+N <- 400
+TT <- 10
+
+units <- data.frame(
+  id = 1:N,
+  G = sample(c(0, 4, 6, 8), N, replace = TRUE,
+             prob = c(0.30, 0.25, 0.25, 0.20)),
+  alpha = rnorm(N),
+  W = rnorm(N)
+)
+
+data <- merge(
+  expand.grid(id = 1:N, t = 1:TT),
+  units,
+  by = "id",
+  sort = TRUE
+)
+
+data$D <- as.integer(data$G > 0 & data$t >= data$G)
+data$event_time <- ifelse(data$G > 0, data$t - data$G, NA)
+data$cohort_scale <- ifelse(
+  data$G == 4, 1.50,
+  ifelse(data$G == 6, 1.00, ifelse(data$G == 8, 0.60, 0))
+)
+data$tau <- ifelse(
+  data$D == 1,
+  data$cohort_scale * (1 + 0.5 * data$event_time),
+  0
+)
+
+data$lambda <- 0.25 * data$t + 0.03 * data$t^2
+data$Y0 <- data$alpha + data$lambda + 0.5 * data$W +
+  rnorm(nrow(data))
+data$Y <- data$Y0 + data$tau
+
+table(data$G, data$t)
+```
+
+Untreated outcomes obey parallel trends by construction. Every treatment effect
+is positive, but effects are heterogeneous across cohorts and exposure lengths.
+
+## Calculate one $ATT(g,t)$ by hand
+
+This function uses period $g-1$ as the baseline and units not yet treated by
+period $t$ as controls.
+
+```{webr}
+simple_att_gt <- function(data, g, t) {
+  stopifnot(t >= g)
+  base <- g - 1
+
+  now <- data[data$t == t, c("id", "G", "Y")]
+  names(now)[names(now) == "Y"] <- "Y_now"
+  before <- data[data$t == base, c("id", "Y")]
+  names(before)[names(before) == "Y"] <- "Y_before"
+
+  change <- merge(now, before, by = "id")
+  change$dY <- change$Y_now - change$Y_before
+  treated <- change$G == g
+  controls <- change$G == 0 | change$G > t
+
+  mean(change$dY[treated]) - mean(change$dY[controls])
+}
+
+estimated <- simple_att_gt(data, g = 4, t = 6)
+true_effect <- mean(data$tau[data$G == 4 & data$t == 6])
+c(estimated_ATT_4_6 = estimated, true_ATT_4_6 = true_effect)
+```
+
+The true effect is observable here only because we designed the simulation.
+
+## Callaway--Sant'Anna group--time effects
+
+```{webr}
+library(did)
+
+att <- att_gt(
+  yname = "Y",
+  tname = "t",
+  idname = "id",
+  gname = "G",
+  xformla = ~ 1,
+  data = data,
+  panel = TRUE,
+  control_group = "notyettreated",
+  est_method = "dr",
+  base_period = "universal",
+  clustervars = "id",
+  bstrap = TRUE,
+  cband = TRUE,
+  biters = 99
+)
+
+summary(att)
+ggdid(att)
+```
+
+With `xformla = ~ 1`, the built-in outcome-regression, IPW, and doubly robust
+methods share the same unconditional two-by-two DID point estimates. Replacing
+it with `~ W` changes the design to conditional parallel trends given `W`.
+
+## Aggregate only after estimating clean effects
+
+```{webr}
+overall <- aggte(att, type = "simple")
+by_group <- aggte(att, type = "group")
+dynamic <- aggte(att, type = "dynamic", min_e = -3, max_e = 4)
+
+summary(overall)
+summary(by_group)
+summary(dynamic)
+ggdid(dynamic)
+```
+
+These are different causal summaries. The `simple` output averages post-
+treatment cells, `group` first summarizes within cohort, and `dynamic` organizes
+effects by exposure length.
+
+Hold post-treatment cohort composition fixed through event time 3:
+
+```{webr}
+dynamic_balanced <- aggte(
+  att,
+  type = "dynamic",
+  min_e = -3,
+  max_e = 3,
+  balance_e = 3
+)
+summary(dynamic_balanced)
+ggdid(dynamic_balanced)
+```
+
+## Conventional TWFE versus Sun--Abraham
+
+The conventional event study can use already-treated groups as controls. The
+Sun--Abraham construction forms cohort-by-event-time interactions and then
+aggregates them.
+
+```{webr}
+library(fixest)
+
+data$ever_treated <- as.integer(data$G > 0)
+data$event_twfe <- ifelse(data$G > 0, data$t - data$G, 0)
+
+twfe_event <- feols(
+  Y ~ i(event_twfe, ever_treated, ref = -1) | id + t,
+  data = data,
+  cluster = ~ id
+)
+
+# A cohort outside the observed time range is treated as never treated.
+data$G_sunab <- ifelse(data$G == 0, 1000, data$G)
+sa_event <- feols(
+  Y ~ sunab(G_sunab, t, ref.p = -1) | id + t,
+  data = data,
+  cluster = ~ id
+)
+
+iplot(
+  list("Conventional TWFE" = twfe_event,
+       "Sun-Abraham" = sa_event),
+  ref.line = -1,
+  main = "Event-study estimates"
+)
+```
+
+The intervals in this `iplot()` comparison are ordinary pointwise intervals.
+They are not simultaneous confidence bands for the complete event-study curve.

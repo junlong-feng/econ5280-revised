@@ -1,0 +1,126 @@
+% Shared preamble for ECON 5280 lecture notes.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[sc]{mathpazo}
+\linespread{1.04}
+\usepackage{microtype}
+
+\usepackage[a4paper,margin=1in,headheight=15pt]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm,mathrsfs}
+\usepackage{graphicx}
+\graphicspath{{../assets/}}
+\usepackage{booktabs,longtable,array,multirow}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+
+\definecolor{econblue}{HTML}{17365D}
+\definecolor{econlight}{HTML}{F1F5F9}
+\definecolor{econgreen}{HTML}{285943}
+\definecolor{codebg}{HTML}{F7F7F5}
+\definecolor{codecomment}{HTML}{4F6F52}
+\definecolor{codestring}{HTML}{8A3B12}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=econblue,
+  citecolor=econgreen,
+  urlcolor=econblue,
+  pdftitle={ECON 5280: Causal Inference and Machine Learning},
+  pdfauthor={Junlong Feng}
+}
+
+\setlist{itemsep=0.25em,topsep=0.5em}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\allowdisplaybreaks
+\emergencystretch=2em
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\color{econblue}}
+  {\filleft\Large\chaptertitlename\ \thechapter}
+  {0.6ex}
+  {\titlerule\vspace{0.9ex}\Huge\raggedright\hyphenpenalty=10000\relax}
+\titlespacing*{\chapter}{0pt}{-10pt}{30pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small ECON 5280}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Corr}{\operatorname{Corr}}
+\newcommand{\Prb}{\mathbb{P}}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\dto}{\overset{d}{\longrightarrow}}
+\newcommand{\pto}{\overset{p}{\longrightarrow}}
+\newcommand{\indep}{\mathrel{\perp\!\!\!\perp}}
+\newcommand{\1}{\mathbf{1}}
+\newcommand{\R}{\mathbb{R}}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem{assumption}{Assumption}[chapter]
+\newtheorem{example}{Example}[chapter]
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[chapter]
+
+\newtcolorbox{important}{
+  enhanced,
+  breakable,
+  colback=econlight,
+  colframe=econblue,
+  boxrule=0.7pt,
+  arc=1.5mm,
+  left=2mm,right=2mm,top=1.5mm,bottom=1.5mm,
+  title=Important,
+  fonttitle=\bfseries
+}
+
+\lstdefinestyle{econR}{
+  language=R,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{black!18},
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestring},
+  keywordstyle=\color{econblue}\bfseries,
+  numbers=left,
+  numberstyle=\tiny\color{black!50},
+  numbersep=7pt,
+  xleftmargin=1.4em,
+  framexleftmargin=1.1em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+\lstnewenvironment{rcode}[1][]
+  {\lstset{style=econR,#1}}
+  {}
+
+\captionsetup{font=small,labelfont=bf}
+\crefname{assumption}{assumption}{assumptions}
+\Crefname{assumption}{Assumption}{Assumptions}

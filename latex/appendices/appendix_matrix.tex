@@ -1,0 +1,180 @@
+\chapter{Additional Matrix Algebra}
+\label{app:matrix}
+
+This appendix collects material that is useful for reference but is not
+needed before the main econometrics chapters.
+
+\section{Addition and scalar multiplication}
+
+Matrices can be added only when they have the same dimensions, and addition
+is entry by entry.  If $A$ and $B$ are $m\times k$, then
+\[
+  (A+B)_{ij}=a_{ij}+b_{ij}.
+\]
+For a scalar $c$, scalar multiplication is also entry by entry:
+$(cA)_{ij}=ca_{ij}$.  Consequently,
+\[
+  A+B=B+A,\qquad c(A+B)=cA+cB.
+\]
+
+\section{Several views of multiplication}
+
+Let $A$ be $n\times k$, $B$ be $n\times p$, and $C=A'B$.  In addition to
+the entry formula in Chapter~\ref{ch:matrix}, we can write
+\[
+  C_{ab}=A_{\cdot a}'B_{\cdot b}
+  \quad\text{and}\quad
+  A'B=\sum_{i=1}^{n}A_iB_i',
+\]
+where $A_{\cdot a}$ denotes column $a$ of $A$, while $A_i$ and $B_i$ are the
+column-vector versions of row $i$.  Each term $A_iB_i'$ is $k\times p$.
+
+The following code verifies the two representations.  It is pedagogically
+useful, although in practice one should use R's optimized matrix product.
+
+\begin{rcode}
+A <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3, ncol = 2)
+B <- matrix(c(2, 3, 4, 5, 6, 7), nrow = 3, ncol = 2)
+
+# Direct product
+C <- t(A) %*% B
+
+# Entry-by-entry representation
+C_entry <- matrix(0, ncol(A), ncol(B))
+for (a in seq_len(ncol(A))) {
+  for (b in seq_len(ncol(B))) {
+    C_entry[a, b] <- sum(A[, a] * B[, b])
+  }
+}
+
+# Sum of row outer products
+C_outer <- matrix(0, ncol(A), ncol(B))
+for (i in seq_len(nrow(A))) {
+  ai <- matrix(A[i, ], ncol = 1)
+  bi <- matrix(B[i, ], nrow = 1)
+  C_outer <- C_outer + ai %*% bi
+}
+
+C
+C_entry
+C_outer
+\end{rcode}
+
+\section{Rank and inverse formulas}
+
+Some useful rank facts are
+\[
+  \operatorname{rank}(AB)
+  \leq \min\{\operatorname{rank}(A),\operatorname{rank}(B)\}
+\]
+and
+\[
+  \operatorname{rank}(A'A)=\operatorname{rank}(AA')
+  =\operatorname{rank}(A).
+\]
+The second equality does \emph{not} imply that both $A'A$ and $AA'$ are
+invertible when $A$ is rectangular.  If $A$ is $m\times k$ with $m>k$ and
+full column rank, then $A'A$ is invertible but $AA'$ has rank $k<m$ and is
+singular.  The roles reverse when $m<k$ and $A$ has full row rank.
+
+For an invertible diagonal matrix
+$D=\operatorname{diag}(d_1,\ldots,d_k)$,
+\[
+  D^{-1}=\operatorname{diag}(d_1^{-1},\ldots,d_k^{-1}).
+\]
+For
+\[
+  A=\begin{pmatrix}a&b\\c&d\end{pmatrix},
+\]
+the determinant is $ad-bc$, and, when $ad-bc\neq0$,
+\[
+  A^{-1}=\frac{1}{ad-bc}
+  \begin{pmatrix}d&-b\\-c&a\end{pmatrix}.
+\]
+
+\section{Eigenvalues and spectral decomposition}
+
+An eigenvalue--eigenvector pair $(\lambda,v)$ of a square matrix $A$ satisfies
+$Av=\lambda v$ with $v\neq0$.  A general real square matrix need not have a
+full set of real eigenvectors and need not be diagonalizable.  For example,
+$\begin{psmallmatrix}1&1\\0&1\end{psmallmatrix}$ is not diagonalizable.
+
+The clean result needed most often in econometrics applies to symmetric
+matrices.
+
+\begin{theorem}[Spectral theorem]
+For every real symmetric $k\times k$ matrix $A$, there are an orthogonal
+matrix $H$ and a real diagonal matrix $\Lambda$ such that
+\[
+  A=H\Lambda H',\qquad H'H=HH'=I_k.
+\]
+The diagonal entries of $\Lambda$ are the eigenvalues of $A$, and the columns
+of $H$ are orthonormal eigenvectors.
+\end{theorem}
+
+The decomposition is not unique: eigenvectors can be reordered, their signs
+can be changed, and within an eigenspace associated with a repeated
+eigenvalue, any orthonormal basis may be used.
+
+For a real symmetric matrix:
+\begin{itemize}
+  \item $A$ is p.s.d. if and only if every eigenvalue is nonnegative;
+  \item $A$ is p.d. if and only if every eigenvalue is positive;
+  \item $\operatorname{rank}(A)$ equals the number of nonzero eigenvalues;
+  \item $A$ is invertible if and only if zero is not an eigenvalue, and then
+        $A^{-1}=H\Lambda^{-1}H'$.
+\end{itemize}
+The rank statement is not valid for every nonsymmetric matrix.  A nilpotent
+matrix such as $\begin{psmallmatrix}0&1\\0&0\end{psmallmatrix}$ has rank one
+but only the eigenvalue zero.
+
+For a rectangular matrix, the analogous tool is the singular-value
+decomposition $A=U\Sigma V'$.  Its rank equals the number of nonzero singular
+values.  This is why singular values, rather than ordinary eigenvalues, are
+the safe general-purpose rank diagnostic.
+
+\begin{rcode}
+library(Matrix)
+A <- matrix(c(2, 1, 1, 2), 2, 2)
+eigen(A)
+rankMatrix(A)
+solve(A)
+
+# A nonsymmetric matrix that is not diagonalizable
+J <- matrix(c(1, 0, 1, 1), 2, 2)
+eigen(J)
+\end{rcode}
+
+\section{Matrix derivatives}
+
+We use the convention that the gradient of a scalar-valued function with
+respect to a column vector is itself a column vector.  For conformable fixed
+objects $x$, $y$, and $X$,
+\[
+  \nabla_\beta(x'\beta)=x,
+  \qquad
+  \nabla_\beta(\beta'\beta)=2\beta,
+  \qquad
+  \frac{\partial(X\beta)}{\partial\beta'}=X.
+\]
+The last object is a Jacobian, not a scalar gradient.
+
+For the least-squares criterion
+\[
+  Q(\beta)=(Y-X\beta)'(Y-X\beta),
+\]
+expansion or the chain rule gives
+\begin{align*}
+  \nabla_\beta Q(\beta)
+  &=-2X'(Y-X\beta)\\
+  &=2X'(X\beta-Y).
+\end{align*}
+The minus sign is essential.  Setting the gradient to zero yields the normal
+equations $X'X\beta=X'Y$, and if $X$ has full column rank,
+$\widehat\beta=(X'X)^{-1}X'Y$.
+
+\section{Further reading}
+
+Useful extensions include determinants, traces, idempotent projection
+matrices, generalized inverses, and singular-value decomposition.  A compact
+reference is Petersen and Pedersen's \emph{Matrix Cookbook}.

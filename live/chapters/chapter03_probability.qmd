@@ -1,0 +1,390 @@
+---
+title: "Chapter 3: Probability"
+author: "Junlong Feng"
+format:
+  live-html:
+    toc: true
+    toc-depth: 3
+webr:
+  packages:
+    - mvtnorm
+---
+
+Econometric estimators are functions of random samples. Probability gives us
+the language for describing their behavior before the sample is observed.
+The optional sections at the end correspond to the printed appendix.
+
+## Random variables and distributions
+
+A random variable is a numerical function of an underlying random outcome.
+The set of values that it can take with positive probability, or approach
+arbitrarily closely, is its **support**. The support is not the same object as
+the underlying sample space of outcomes.
+
+A variable is **discrete** when its distribution is concentrated on a finite
+or countable set. Its probability mass function is
+
+$$
+p_X(x)=\Pr(X=x).
+$$
+
+A Bernoulli variable $X\sim\operatorname{Bernoulli}(p)$ has support
+$\{0,1\}$ and $\Pr(X=1)=p$.
+
+```{webr}
+#| edit: true
+set.seed(5280)
+rbinom(n = 10, size = 1, prob = 0.5)
+```
+
+The cumulative distribution function (c.d.f.) is defined for every random
+variable:
+
+$$
+F_X(x)=\Pr(X\leq x).
+$$
+
+If $X$ has a density $f_X$, then
+
+$$
+F_X(x)=\int_{-\infty}^x f_X(s)\,ds,
+\qquad
+\Pr(a<X\leq b)=\int_a^b f_X(s)\,ds.
+$$
+
+Such a variable is **absolutely continuous**, and $\Pr(X=x)=0$ for every
+$x$. Probability is not generally the geometric length of an interval: it is
+the area under the density. Length gives probability only for a suitably
+normalized uniform distribution.
+
+A normal variable $X\sim N(\mu,\sigma^2)$ has density
+
+$$
+f_X(x)=\frac{1}{\sigma\sqrt{2\pi}}
+\exp\left\{-\frac{(x-\mu)^2}{2\sigma^2}\right\}.
+$$
+
+Normal distributions are important for large-sample approximations; we will
+not assume that economic variables themselves are normally distributed.
+
+### Joint, marginal, and conditional distributions
+
+The joint distribution of $(X,Y)$ describes their behavior together. Its
+marginal distributions describe $X$ and $Y$ separately. Conditional
+distributions describe one variable within a subpopulation indexed by the
+other.
+
+When a joint density exists,
+
+$$
+f_X(x)=\int f_{X,Y}(x,y)\,dy,
+\qquad
+f_{Y\mid X}(y\mid x)=\frac{f_{X,Y}(x,y)}{f_X(x)}
+$$
+
+for $x$ with $f_X(x)>0$. Thus
+
+$$
+f_{X,Y}(x,y)=f_{Y\mid X}(y\mid x)f_X(x)
+=f_{X\mid Y}(x\mid y)f_Y(y).
+$$
+
+The joint distribution contains the marginals, but the marginals alone
+usually do not reveal how $X$ and $Y$ move together.
+
+**Independence.** $X$ and $Y$ are independent, written $X\perp Y$, if
+
+$$
+F_{X,Y}(x,y)=F_X(x)F_Y(y)
+$$
+
+for every $(x,y)$. When densities exist, this is equivalent to density
+factorization almost everywhere. If $X\perp Y$, then
+$g(X)\perp h(Y)$ for measurable $g$ and $h$.
+
+## Expectation, variance, covariance, and correlation
+
+For a continuous variable,
+
+$$
+\mathbb E(X)=\int x f_X(x)\,dx=\mu_X.
+$$
+
+For a discrete variable, replace the integral by a sum. Expectation is
+linear whether or not variables are independent:
+
+$$
+\mathbb E(aX+bY)=a\mathbb E(X)+b\mathbb E(Y).
+$$
+
+Variance and covariance are
+
+$$
+\begin{aligned}
+\operatorname{Var}(X)
+  &=\mathbb E[(X-\mu_X)^2]
+    =\mathbb E(X^2)-\mu_X^2,\\
+\operatorname{Cov}(X,Y)
+  &=\mathbb E[(X-\mu_X)(Y-\mu_Y)]
+    =\mathbb E(XY)-\mu_X\mu_Y.
+\end{aligned}
+$$
+
+Useful rules include
+
+$$
+\begin{aligned}
+\operatorname{Var}(aX+bY)
+ &=a^2\operatorname{Var}(X)+b^2\operatorname{Var}(Y)
+   +2ab\operatorname{Cov}(X,Y),\\
+\operatorname{Cov}(aX+bY,Z)
+ &=a\operatorname{Cov}(X,Z)+b\operatorname{Cov}(Y,Z).
+\end{aligned}
+$$
+
+Correlation is
+
+$$
+\rho_{XY}=\frac{\operatorname{Cov}(X,Y)}
+{\sqrt{\operatorname{Var}(X)\operatorname{Var}(Y)}}\in[-1,1]
+$$
+
+when both variances are positive. Zero correlation need not imply
+independence.
+
+For a random vector $X$, the covariance matrix is
+
+$$
+\Sigma_X=\mathbb E[(X-\mu_X)(X-\mu_X)'].
+$$
+
+It is symmetric and positive semidefinite because
+
+$$
+a'\Sigma_Xa=\operatorname{Var}(a'X)\geq0.
+$$
+
+## Conditional expectation
+
+For a continuous pair,
+
+$$
+\mathbb E(Y\mid X=x)=\int y f_{Y\mid X}(y\mid x)\,dy.
+$$
+
+For fixed $x$, this is a number. By contrast,
+$\mathbb E(Y\mid X)$ is a random variable: it is a function of the
+still-random $X$.
+
+Conditional expectation is linear, and functions of the conditioning
+variable can be taken outside:
+
+$$
+\begin{aligned}
+\mathbb E(aY+bZ\mid X)
+ &=a\mathbb E(Y\mid X)+b\mathbb E(Z\mid X),\\
+\mathbb E[g(X)Y\mid X]
+ &=g(X)\mathbb E(Y\mid X).
+\end{aligned}
+$$
+
+The **law of iterated expectations** says
+
+$$
+\mathbb E\{\mathbb E(Y\mid X)\}=\mathbb E(Y).
+$$
+
+If the information in $Z$ is contained in that in $X$, then
+
+$$
+\mathbb E\{\mathbb E(Y\mid X)\mid Z\}=\mathbb E(Y\mid Z).
+$$
+
+In particular, $\mathbb E(X\mid X)=X$.
+
+We say $Y$ is **mean independent** of $X$ if
+$\mathbb E(Y\mid X)=\mathbb E(Y)$ almost surely. Full independence implies
+mean independence in both directions, and mean independence implies zero
+covariance when the moments exist:
+
+$$
+X\perp Y
+\Longrightarrow \mathbb E(Y\mid X)=\mathbb E(Y)
+\Longrightarrow \operatorname{Cov}(X,Y)=0.
+$$
+
+## Random samples and large-sample theory
+
+For cross-sectional applications, we often assume
+$W_i=(Y_i,X_i')'$ is i.i.d. across units. This does **not** require the
+components within $W_i$ to be independent. In panel data, repeated
+observations on the same unit are normally dependent; i.i.d. sampling may
+instead be imposed across units.
+
+### Convergence in probability and the WLLN
+
+$W_n$ converges in probability to $w$, written $W_n\to_p w$, if, for every
+$\varepsilon>0$,
+
+$$
+\Pr(\lVert W_n-w\rVert>\varepsilon)\to0.
+$$
+
+When $W_n$ is an estimator, this is consistency.
+
+**Weak law of large numbers.** If $X_1,\ldots,X_n$ are i.i.d. random vectors
+with $\mathbb E\lVert X_i\rVert<\infty$, then
+
+$$
+\bar X_n=\frac1n\sum_{i=1}^nX_i\to_p\mathbb E(X_i).
+$$
+
+Under finite variance, the scalar intuition is
+$\operatorname{Var}(\bar X_n)=\operatorname{Var}(X_i)/n\to0$.
+
+### Convergence in distribution and the CLT
+
+$W_n$ converges in distribution to $W$, written $W_n\to_d W$, if
+$\mathbb E[g(W_n)]\to\mathbb E[g(W)]$ for every bounded continuous function
+$g$. For scalar variables, this is equivalent to c.d.f. convergence at every
+continuity point of the limiting c.d.f. It is not correct to require
+convergence of probabilities for every possible set.
+
+**Multivariate central limit theorem.** If $X_i$ are i.i.d. $k\times1$
+random vectors with mean $\mu$ and finite covariance matrix $\Sigma$, then
+
+$$
+\sqrt n(\bar X_n-\mu)\to_d N(0,\Sigma).
+$$
+
+The limit is standard normal only after appropriate standardization.
+$\Sigma$ includes cross-component covariances as well as marginal variances.
+
+### Continuous mapping and Slutsky
+
+For a continuous function $g$, the continuous mapping theorem transfers
+convergence through $g$. Slutsky's theorem says that if
+$X_n\to_dX$ and $Y_n\to_p c$ for a constant $c$, then
+
+$$
+X_n+Y_n\to_dX+c,\qquad
+X_nY_n\to_dcX,\qquad
+X_n/Y_n\to_dX/c\quad(c\neq0).
+$$
+
+## Optional: probability spaces and sigma-algebras
+
+A probability space is a triple $(\mathcal S,\mathcal F,P)$:
+
+- $\mathcal S$ is the sample space of elementary outcomes;
+- $\mathcal F$ is a sigma-algebra of events;
+- $P:\mathcal F\to[0,1]$ assigns probability one to $\mathcal S$ and is
+  countably additive over disjoint events.
+
+A random variable is a measurable map $X:\mathcal S\to\mathbb R$. Its
+distribution is the measure induced on the real line. This separates the
+underlying outcome space from the support of the numerical variable.
+
+## Optional: continuous versus absolutely continuous
+
+A variable is continuous (atomless) if $\Pr(X=x)=0$ for every $x$,
+equivalently if its c.d.f. is continuous. It is absolutely continuous if its
+c.d.f. is an integral of a density. Every absolutely continuous distribution
+is continuous, but the converse is false. The Cantor distribution has a
+continuous c.d.f. but no density with respect to ordinary length.
+
+```{webr}
+#| edit: true
+x <- seq(-7, 7, length.out = 400)
+plot(x, dnorm(x, 0, 1), type = "l", lwd = 2,
+     xlab = "x", ylab = "density", ylim = c(0, 0.42))
+lines(x, dnorm(x, 2, 1), lty = 2, lwd = 2, col = "steelblue")
+lines(x, dnorm(x, 0, 2), lty = 3, lwd = 2, col = "firebrick")
+legend("topright", c("N(0,1)", "N(2,1)", "N(0,4)"),
+       lty = 1:3, lwd = 2,
+       col = c("black", "steelblue", "firebrick"), bty = "n")
+```
+
+## Optional: conditioning on a zero-probability event
+
+When $\Pr(X=x)=0$, an ordinary ratio of probabilities cannot define
+$\Pr(Y\leq y\mid X=x)$. A regular conditional distribution supplies a valid
+version. When a joint density exists and $f_X(x)>0$,
+
+$$
+f_{Y\mid X}(y\mid x)=\frac{f_{X,Y}(x,y)}{f_X(x)}.
+$$
+
+Limits over shrinking intervals are useful intuition but require regularity
+conditions and are not the general definition.
+
+## Optional: a bivariate normal demonstration
+
+A pair $(X,Y)$ is jointly normal if every linear combination $aX+bY$ is
+normal. For a jointly normal pair, zero covariance is equivalent to
+independence. This is special to the joint-normal family.
+
+```{webr}
+#| edit: true
+library(mvtnorm)
+x <- seq(-4, 4, length.out = 80)
+y <- seq(-4, 4, length.out = 80)
+Sigma <- matrix(c(1, 0.5, 0.5, 1), 2, 2)
+z <- outer(x, y, Vectorize(function(a, b) {
+  dmvnorm(c(a, b), mean = c(0, 0), sigma = Sigma)
+}))
+contour(x, y, z, xlab = "X", ylab = "Y")
+```
+
+## Optional: WLLN and CLT simulation
+
+For Bernoulli$(0.5)$ observations, the WLLN predicts concentration around
+$0.5$, while the CLT predicts
+
+$$
+\frac{\sqrt n(\bar X_n-0.5)}{0.5}\to_dN(0,1).
+$$
+
+```{webr}
+#| edit: true
+set.seed(12)
+B <- 1000
+n_grid <- c(10, 25, 50, 100, 250)
+
+sim_one_n <- function(n) {
+  means <- replicate(B, mean(rbinom(n, 1, 0.5)))
+  data.frame(
+    n = n,
+    mean = means,
+    standardized = sqrt(n) * (means - 0.5) / 0.5
+  )
+}
+sim <- do.call(rbind, lapply(n_grid, sim_one_n))
+
+aggregate(abs(mean - 0.5) < 0.1 ~ n, sim, mean)
+
+z <- subset(sim, n == max(n_grid))$standardized
+hist(z, probability = TRUE, breaks = 25,
+     main = paste("n =", max(n_grid)), xlab = "standardized mean")
+curve(dnorm(x), add = TRUE, lwd = 2, col = "firebrick")
+```
+
+## Optional: delta method
+
+Suppose $X_n\in\mathbb R^k$ satisfies
+
+$$
+\sqrt n(X_n-\theta)\to_dN(0,\Sigma),
+$$
+
+and $g:\mathbb R^k\to\mathbb R^\ell$ is continuously differentiable near
+$\theta$. Let $G(\theta)$ be the $\ell\times k$ Jacobian. Then
+
+$$
+\sqrt n\{g(X_n)-g(\theta)\}
+\to_dN\left(0,G(\theta)\Sigma G(\theta)'\right).
+$$
+
+For scalar $g$, $G(\theta)$ is a row vector. If the first derivative is zero,
+the first-order result is degenerate and a higher-order delta method may be
+needed.

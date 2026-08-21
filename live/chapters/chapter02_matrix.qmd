@@ -1,0 +1,279 @@
+---
+title: "Chapter 2: Matrix Algebra"
+author: "Junlong Feng"
+format:
+  live-html:
+    toc: true
+    toc-depth: 3
+webr:
+  packages:
+    - Matrix
+---
+
+## Why matrices?
+
+An $n\times1$ vector $Y$ can collect $n$ observations of an outcome, while an
+$n\times k$ matrix $X$ collects $k$ explanatory variables for the same
+observations. Most estimators in this course are formulas built from $Y$ and
+$X$, so a compact matrix toolkit saves us a great deal of work.
+
+The first five sections contain the tools needed in the main course. The
+optional sections at the end correspond to the printed appendix.
+
+## Scalars, vectors, and matrices
+
+A **scalar** is a number. A **vector** is an ordered list of numbers, usually
+written as a column. A **matrix** is a rectangular array. If $A$ has $n$ rows
+and $k$ columns, it is an $n\times k$ matrix and $a_{ij}$ is its entry in row
+$i$, column $j$. For example,
+
+$$
+A=\begin{pmatrix}
+a_{11}&a_{12}&a_{13}\\
+a_{21}&a_{22}&a_{23}
+\end{pmatrix}
+=(A_1,A_2,A_3)
+$$
+
+is $2\times3$, where $A_j$ denotes column $j$.
+
+The **transpose** $A'$ interchanges rows and columns: $(A')_{ij}=A_{ji}$. If
+$A$ is $n\times k$, then $A'$ is $k\times n$.
+
+A matrix is:
+
+- **square** if it has the same number of rows and columns;
+- **symmetric** if $A=A'$;
+- **diagonal** if all off-diagonal entries are zero;
+- an **identity matrix** $I_k$ if it is $k\times k$, diagonal, and has ones
+  on the diagonal.
+
+## Matrix multiplication
+
+Matrices $A$ and $B$ are conformable for $AB$ when the number of columns of
+$A$ equals the number of rows of $B$. If $A$ is $m\times k$ and $B$ is
+$k\times r$, then $AB$ is $m\times r$ with
+
+$$
+(AB)_{ij}=\sum_{\ell=1}^{k}a_{i\ell}b_{\ell j}.
+$$
+
+Always check dimensions first.
+
+### Inner and outer products
+
+For $k\times1$ vectors $a$ and $b$, the **inner product** is the scalar
+
+$$
+a'b=\sum_{j=1}^{k}a_jb_j.
+$$
+
+The **outer product** $ab'$ is a $k\times k$ matrix whose $(i,j)$ entry is
+$a_i b_j$. For an $n\times k$ matrix $X$ whose $i$th row is $X_i'$,
+
+$$
+X'X=\sum_{i=1}^{n}X_iX_i'.
+$$
+
+```{webr}
+#| edit: true
+A <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3, ncol = 2)
+B <- matrix(c(2, 3, 4, 5, 6, 7), nrow = 3, ncol = 2)
+
+t(A) %*% B
+sum(A[, 1] * B[, 2])  # the (1,2) entry
+```
+
+### Rules worth remembering
+
+Matrix multiplication is generally not commutative: $AB$ need not equal
+$BA$. It is associative and distributive whenever dimensions conform:
+
+$$
+A(BC)=(AB)C,\qquad A(B+C)=AB+AC.
+$$
+
+Transpose reverses product order:
+
+$$
+(AB)'=B'A'.
+$$
+
+## Linear independence, rank, and invertibility
+
+Vectors $a_1,\ldots,a_r$ are **linearly independent** if
+
+$$
+c_1a_1+\cdots+c_ra_r=0
+$$
+
+implies $c_1=\cdots=c_r=0$. Otherwise, at least one direction is redundant.
+
+The **rank** of a matrix is the dimension of its column space (equivalently,
+its row space). An $m\times k$ matrix has rank no greater than
+$\min\{m,k\}$. It has:
+
+- full column rank if its rank is $k$;
+- full row rank if its rank is $m$;
+- full rank if its rank is $\min\{m,k\}$.
+
+An inverse is defined only for a square matrix. A $k\times k$ matrix $A$ is
+invertible if $A^{-1}A=AA^{-1}=I_k$. It is invertible if and only if it has
+rank $k$.
+
+For a rectangular matrix, full rank does **not** mean invertible:
+
+- $A'A$ is invertible iff $A$ has full column rank;
+- $AA'$ is invertible iff $A$ has full row rank.
+
+Both can be invertible only when $A$ is square and full rank. In every case,
+
+$$
+\operatorname{rank}(A'A)=\operatorname{rank}(AA')
+=\operatorname{rank}(A).
+$$
+
+```{webr}
+#| edit: true
+library(Matrix)
+
+A_tall <- matrix(c(1, 0, 1, 0, 1, 1), nrow = 3, ncol = 2)
+c(rank_A = rankMatrix(A_tall),
+  rank_AtA = rankMatrix(t(A_tall) %*% A_tall),
+  rank_AAt = rankMatrix(A_tall %*% t(A_tall)))
+
+solve(t(A_tall) %*% A_tall)       # exists
+try(solve(A_tall %*% t(A_tall)))  # singular
+```
+
+## Positive semidefinite matrices
+
+A real symmetric $k\times k$ matrix $A$ is **positive semidefinite** (p.s.d.)
+if $x'Ax\geq0$ for every $x$. It is **positive definite** (p.d.) if
+$x'Ax>0$ for every nonzero $x$.
+
+For every real matrix $A$,
+
+$$
+x'A'Ax=(Ax)'(Ax)=\lVert Ax\rVert^2\geq0,
+$$
+
+so $A'A$ is p.s.d. It is p.d. exactly when $A$ has full column rank.
+Similarly, $AA'$ is p.s.d. and is p.d. exactly when $A$ has full row rank.
+
+If $W$ is a random vector with covariance matrix $\Sigma$, then
+
+$$
+a'\Sigma a=\mathbb E[\{a'(W-\mathbb EW)\}^2]\geq0,
+$$
+
+so every covariance matrix is p.s.d.
+
+## Optional: addition and detailed multiplication
+
+Matrices can be added only when they have the same dimensions, entry by
+entry. Scalar multiplication is also entry by entry.
+
+Let $A$ be $n\times k$, $B$ be $n\times p$, and $C=A'B$. Then
+
+$$
+C_{ab}=A_{\cdot a}'B_{\cdot b},
+\qquad
+A'B=\sum_{i=1}^{n}A_iB_i',
+$$
+
+where $A_i$ and $B_i$ are column-vector versions of row $i$.
+
+```{webr}
+#| edit: true
+A <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3, ncol = 2)
+B <- matrix(c(2, 3, 4, 5, 6, 7), nrow = 3, ncol = 2)
+
+C_entry <- matrix(0, ncol(A), ncol(B))
+for (a in seq_len(ncol(A))) {
+  for (b in seq_len(ncol(B))) {
+    C_entry[a, b] <- sum(A[, a] * B[, b])
+  }
+}
+
+C_outer <- matrix(0, ncol(A), ncol(B))
+for (i in seq_len(nrow(A))) {
+  ai <- matrix(A[i, ], ncol = 1)
+  bi <- matrix(B[i, ], nrow = 1)
+  C_outer <- C_outer + ai %*% bi
+}
+
+t(A) %*% B
+C_entry
+C_outer
+```
+
+## Optional: inverse formulas and eigenvalues
+
+For an invertible diagonal matrix
+$D=\operatorname{diag}(d_1,\ldots,d_k)$,
+$D^{-1}=\operatorname{diag}(d_1^{-1},\ldots,d_k^{-1})$. For
+
+$$
+A=\begin{pmatrix}a&b\\c&d\end{pmatrix},
+$$
+
+when $ad-bc\neq0$,
+
+$$
+A^{-1}=\frac{1}{ad-bc}
+\begin{pmatrix}d&-b\\-c&a\end{pmatrix}.
+$$
+
+An eigenpair satisfies $Av=\lambda v$ with $v\neq0$. A general real square
+matrix need not be diagonalizable. The clean result applies to real symmetric
+matrices: there are an orthogonal $H$ and diagonal $\Lambda$ such that
+
+$$
+A=H\Lambda H',\qquad H'H=HH'=I.
+$$
+
+For a real symmetric matrix, rank equals the number of nonzero eigenvalues,
+and p.s.d. means all eigenvalues are nonnegative. The rank statement is not
+valid for every nonsymmetric matrix: a nonzero nilpotent matrix can have only
+zero eigenvalues. For rectangular matrices, singular values provide the safe
+general rank diagnostic.
+
+```{webr}
+#| edit: true
+A <- matrix(c(2, 1, 1, 2), 2, 2)
+eigen(A)
+solve(A)
+
+# Nonsymmetric and not diagonalizable
+J <- matrix(c(1, 0, 1, 1), 2, 2)
+eigen(J)
+```
+
+## Optional: matrix derivatives
+
+Using column gradients,
+
+$$
+\nabla_\beta(x'\beta)=x,
+\qquad
+\nabla_\beta(\beta'\beta)=2\beta,
+\qquad
+\frac{\partial(X\beta)}{\partial\beta'}=X.
+$$
+
+For least squares,
+
+$$
+Q(\beta)=(Y-X\beta)'(Y-X\beta),
+$$
+
+and
+
+$$
+\nabla_\beta Q(\beta)
+=-2X'(Y-X\beta)=2X'(X\beta-Y).
+$$
+
+The minus sign is essential. Setting the gradient to zero gives the normal
+equations $X'X\beta=X'Y$.

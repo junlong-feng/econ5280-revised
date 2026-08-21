@@ -1,0 +1,345 @@
+\chapter{Instrumental Variables and Local Average Treatment Effects}
+\label{chap:late}
+
+\begin{description}
+  \item[Motivation.] What can a randomized offer identify when people do not
+  fully comply with their assignment?
+  \item[LATE.] Define the causal effect for compliers and state the assumptions
+  that identify it.
+  \item[IV estimation.] Derive the Wald estimand and its moment-equation
+  representation.
+  \item[Applications.] Discuss where credible instruments come from and why
+  exclusion and relevance require substantive arguments.
+\end{description}
+
+\section{Noncompliance and intent to treat}
+
+Suppose access to an HPV vaccine is allocated by lottery.  Let $Z_i=1$ mean
+that individual $i$ wins a free offer and let $D_i=1$ mean that she actually
+receives the vaccine.  Even if $Z_i$ is randomized, compliance need not be
+perfect:
+\begin{itemize}
+  \item some winners may decline the vaccine; and
+  \item some nonwinners may obtain it elsewhere.
+\end{itemize}
+The difference
+\[
+  \E[Y_i\mid Z_i=1]-\E[Y_i\mid Z_i=0]
+\]
+is the \emph{intent-to-treat} (ITT) effect of the offer on the outcome.  It is
+not generally the average effect of receiving the vaccine.
+
+To describe noncompliance, define the potential treatment $D_i(z)$: whether
+unit $i$ would receive treatment if the instrument were set to $z$.  Only one
+of $D_i(0)$ and $D_i(1)$ is observed, because
+\begin{equation}
+  D_i=Z_iD_i(1)+(1-Z_i)D_i(0).
+  \label{eq:late-observed-treatment}
+\end{equation}
+The pair $(D_i(0),D_i(1))$ defines four principal strata.
+
+\begin{table}[tbp]
+  \centering
+  \caption{Compliance types for a binary instrument and treatment}
+  \label{tab:late-types}
+  \begin{tabular}{lcc}
+    \toprule
+    Type & $D_i(0)$ & $D_i(1)$\\
+    \midrule
+    Never-taker  & 0 & 0\\
+    Complier     & 0 & 1\\
+    Defier       & 1 & 0\\
+    Always-taker & 1 & 1\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+We never observe an individual's type directly.  Calling a unit a complier is
+also application-specific: it depends on which direction of the instrument is
+defined as encouragement.
+
+\begin{definition}[Local average treatment effect]
+For binary $Z_i$ and $D_i$, the local average treatment effect is
+\begin{equation}
+  LATE=\E[Y_i(1)-Y_i(0)\mid D_i(1)>D_i(0)].
+  \label{eq:late-definition}
+\end{equation}
+It is the average treatment effect for compliers.
+\end{definition}
+
+If everyone is a complier, LATE equals the population ATE.  Otherwise it is a
+local parameter for the subpopulation whose treatment status is changed by the
+instrument.  Different valid instruments may therefore identify different
+LATEs.
+
+\section{Identification of LATE}
+\label{sec:late-identification}
+
+It helps to separate four assumptions that are sometimes bundled together.
+
+\begin{enumerate}
+  \item \textbf{Random assignment (instrument exogeneity):}
+  \begin{equation}
+    Z_i\indep\bigl(Y_i(0),Y_i(1),D_i(0),D_i(1)\bigr).
+    \label{eq:late-random-assignment}
+  \end{equation}
+  \item \textbf{Exclusion:} the instrument affects the outcome only through
+  treatment.  If outcomes were initially written $Y_i(d,z)$, exclusion says
+  $Y_i(d,z)=Y_i(d)$ for every $d,z$.
+  \item \textbf{Relevance:}
+  \begin{equation}
+    \E[D_i\mid Z_i=1]\neq \E[D_i\mid Z_i=0].
+    \label{eq:late-relevance}
+  \end{equation}
+  \item \textbf{Monotonicity:}
+  \begin{equation}
+    D_i(1)\geq D_i(0)\quad\text{almost surely}.
+    \label{eq:late-monotonicity}
+  \end{equation}
+  After orienting $Z_i$ as an encouragement, there are no defiers.
+\end{enumerate}
+
+Random assignment and exclusion are distinct.  A lottery can be randomized but
+still violate exclusion if winning changes behavior through publicity, income,
+or expectations even when treatment receipt is held fixed.
+
+\begin{theorem}[Imbens--Angrist LATE theorem]
+Under random assignment, exclusion, relevance, and monotonicity,
+\begin{equation}
+  LATE=
+  \frac{\E[Y_i\mid Z_i=1]-\E[Y_i\mid Z_i=0]}
+       {\E[D_i\mid Z_i=1]-\E[D_i\mid Z_i=0]}.
+  \label{eq:late-wald-population}
+\end{equation}
+The numerator is the outcome ITT and the denominator is the first-stage ITT.
+\end{theorem}
+
+\begin{proof}
+Consistency and exclusion give
+$Y_i=D_iY_i(1)+(1-D_i)Y_i(0)$.  Using
+Equation~\eqref{eq:late-observed-treatment} and random assignment,
+\begin{align*}
+  &\E[Y_i\mid Z_i=1]-\E[Y_i\mid Z_i=0]\\
+  &\quad=\E\!\left[(D_i(1)-D_i(0))
+                     (Y_i(1)-Y_i(0))\right].
+\end{align*}
+Under monotonicity, $D_i(1)-D_i(0)$ equals one for compliers and zero for
+always- and never-takers.  Hence the last display equals
+\[
+  \Pr\{D_i(1)>D_i(0)\}
+  \E[Y_i(1)-Y_i(0)\mid D_i(1)>D_i(0)].
+\]
+Similarly,
+\begin{align*}
+  \E[D_i\mid Z_i=1]-\E[D_i\mid Z_i=0]
+  &=\E[D_i(1)-D_i(0)]\\
+  &=\Pr\{D_i(1)>D_i(0)\}.
+\end{align*}
+Relevance makes this probability nonzero, so division yields
+Equation~\eqref{eq:late-wald-population}.
+\end{proof}
+
+Monotonicity is substantive, not a mathematical convenience.  It can be
+credible for a one-sided encouragement but implausible if the instrument pushes
+different people in opposite directions.  Without monotonicity, the Wald ratio
+mixes complier and defier effects with opposite signs.
+
+\subsection{A linear moment representation}
+\label{sec:late-linear}
+
+For binary $Z_i$, define
+\begin{align*}
+  \gamma&=\E[D_i\mid Z_i=1]-\E[D_i\mid Z_i=0],\\
+  \delta&=\E[Y_i\mid Z_i=1]-\E[Y_i\mid Z_i=0].
+\end{align*}
+The linear projections on $(1,Z_i)$ can be written
+\begin{align*}
+  D_i&=\gamma_0+\gamma Z_i+\nu_i,
+       &\E[\nu_i]=\E[Z_i\nu_i]=0,\\
+  Y_i&=\delta_0+\delta Z_i+\mu_i,
+       &\E[\mu_i]=\E[Z_i\mu_i]=0.
+\end{align*}
+Because relevance implies $\gamma\neq0$, substituting the first equation into
+the second produces
+\begin{equation}
+  Y_i=\beta_0+\beta_1D_i+\varepsilon_i,
+  \qquad
+  \E[\varepsilon_i]=\E[Z_i\varepsilon_i]=0,
+  \label{eq:late-iv-linear}
+\end{equation}
+where $\beta_1=\delta/\gamma=LATE$.  In general
+$\Cov(D_i,\varepsilon_i)\neq0$, which is precisely why OLS is not appropriate.
+
+Equation~\eqref{eq:late-iv-linear} is a useful moment representation.  It does
+not require the individual treatment effect to be constant or the conditional
+mean of $Y_i$ to be globally linear in $D_i$.
+
+\subsection{Conditional LATE}
+
+Let $W_i$ contain pre-instrument covariates.  A conditional design assumes, for
+example,
+\[
+  Z_i\indep\bigl(Y_i(0),Y_i(1),D_i(0),D_i(1)\bigr)\mid W_i,
+\]
+together with conditional exclusion, relevance, and monotonicity.  One possible
+structural shorthand is $Y_i=g(D_i,W_i,U_i)$ and
+$D_i=h(Z_i,W_i,V_i)$ with $Z_i\indep(U_i,V_i)\mid W_i$; importantly, the
+treatment equation depends on $Z_i$, not on $D_i$ itself.
+
+At covariate values with a nonzero conditional first stage,
+\begin{equation}
+  CLATE(w)=
+  \frac{\E[Y_i\mid Z_i=1,W_i=w]-\E[Y_i\mid Z_i=0,W_i=w]}
+       {\E[D_i\mid Z_i=1,W_i=w]-\E[D_i\mid Z_i=0,W_i=w]}.
+  \label{eq:clate}
+\end{equation}
+Unlike the scalar unconditional LATE, $CLATE(w)$ is a function.  Flexible
+methods such as \texttt{grf::instrumental\_forest()} can estimate heterogeneous
+conditional effects under suitable conditions.
+
+\section{Instrumental-variable estimation}
+\label{sec:late-estimation}
+
+The two moment equations associated with
+Equation~\eqref{eq:late-iv-linear} are
+\begin{align}
+  \E[Y_i-\beta_0-\beta_1D_i]&=0,\label{eq:iv-moment-one}\\
+  \E[Z_i(Y_i-\beta_0-\beta_1D_i)]&=0.\label{eq:iv-moment-two}
+\end{align}
+Eliminating the intercept gives
+\begin{equation}
+  \beta_1=\frac{\Cov(Y_i,Z_i)}{\Cov(D_i,Z_i)}.
+  \label{eq:iv-covariance-ratio}
+\end{equation}
+For $p=\Pr(Z_i=1)$,
+\begin{align*}
+  \Cov(D_i,Z_i)
+  &=p(1-p)\{\E[D_i\mid Z_i=1]-\E[D_i\mid Z_i=0]\},
+\end{align*}
+so the denominator is nonzero exactly when $0<p<1$ and the instrument is
+relevant.  Replacing moments by sample averages yields
+\begin{equation}
+  \widehat\beta_{IV}=
+  \frac{\sum_{i=1}^n(Y_i-\bar Y)(Z_i-\bar Z)}
+       {\sum_{i=1}^n(D_i-\bar D)(Z_i-\bar Z)}.
+  \label{eq:iv-sample-wald}
+\end{equation}
+With one binary instrument and one endogenous binary treatment, this is the
+sample analog of the Wald ratio in
+Equation~\eqref{eq:late-wald-population}.
+
+\subsection{Weak instruments}
+
+When the first-stage difference is close to zero, the ratio in
+Equation~\eqref{eq:iv-sample-wald} is unstable.  Weak instruments can produce
+substantial finite-sample bias and a poor normal approximation.  The familiar
+``first-stage $F>10$'' rule is only a rough historical diagnostic, not a general
+guarantee.  It depends on the number of instruments, the estimand, and the
+desired tolerance for bias or size distortion.  Empirical work should report
+the first stage and use weak-instrument-robust diagnostics or confidence sets
+when weakness is a concern.
+
+\section{Where do instruments come from?}
+\label{sec:late-applications}
+
+Instrumental variables transformed empirical economics, but a software command
+cannot make an instrument credible.  Every application must defend both the
+exclusion restriction and relevance.
+
+\subsection{Randomized offers}
+
+RCT assignment is an especially transparent instrument when actual treatment
+has noncompliance.  For example, Kline and Walters (2016) use randomized offers
+in the Head Start Impact Study to learn about early-childhood programs in the
+presence of close substitutes.  The lottery identifies the effect for families
+whose program participation changes because of the offer.
+
+\subsection{Natural and quasi-experiments}
+
+Nature or policy can generate plausibly exogenous variation.  Miguel, Satyanath,
+and Sergenti (2004), for example, use rainfall shocks as an instrument for
+economic growth when studying civil conflict in agriculturally dependent
+African countries.  The exclusion argument is demanding: Sarsons (2015) shows
+why rainfall may be related to conflict through channels other than local
+income.  This exchange illustrates an important habit---actively search for
+alternative pathways from $Z$ to $Y$.
+
+Policy expansions in eligibility for maternal care provide another possible
+instrument for service use.  Staggered implementation may create relevance,
+but selective migration, concurrent programs, or direct income effects can
+threaten exclusion.
+
+\subsection{Variables excluded from the outcome equation}
+
+When no experiment is available, researchers sometimes use a variable believed
+to shift treatment but not the outcome directly.  Classic returns-to-schooling
+examples include quarter of birth (Angrist and Krueger, 1991) and proximity to
+college (Card, 1995).  Both require contestable institutional arguments:
+season of birth and place of residence may be related to family background,
+and their first-stage effects may be weak.
+
+Other common constructions include reference-group variables and
+``Hausman-type'' instruments, such as prices of the same product in other
+markets.  Aggregation or geographic distance does not automatically guarantee
+exogeneity; correlated demand shocks can invalidate the instrument.
+
+\section{R implementation}
+\label{sec:late-r}
+
+The \texttt{ivreg} package uses the formula
+\texttt{outcome \textasciitilde{} treatment \textbar{} instrument}.  The
+following simulation contains never-takers, compliers, and always-takers but no
+defiers.  The treatment effect is heterogeneous, so OLS and IV need not target
+the same parameter.
+
+\begin{rcode}
+library(ivreg)
+
+set.seed(5280)
+n <- 4000
+Z <- rbinom(n, 1, 0.5)
+type <- sample(c("never", "complier", "always"), n,
+               replace = TRUE, prob = c(0.25, 0.55, 0.20))
+
+D0 <- as.integer(type == "always")
+D1 <- as.integer(type %in% c("complier", "always"))
+D <- ifelse(Z == 1, D1, D0)
+
+U <- rnorm(n)
+tau <- 1 + 0.7 * (type == "complier") + 0.4 * U
+Y0 <- 0.5 + U + rnorm(n)
+Y <- Y0 + D * tau
+
+outcome_itt <- mean(Y[Z == 1]) - mean(Y[Z == 0])
+first_stage <- mean(D[Z == 1]) - mean(D[Z == 0])
+wald <- outcome_itt / first_stage
+true_late <- mean(tau[type == "complier"])
+
+c(outcome_itt = outcome_itt,
+  first_stage = first_stage,
+  wald = wald,
+  true_late = true_late)
+
+fit_iv <- ivreg(Y ~ D | Z)
+summary(fit_iv, diagnostics = TRUE)
+summary(lm(Y ~ D))
+\end{rcode}
+
+The companion Quarto Live page runs this example entirely in the browser.  In
+real applications, diagnostics supplement rather than replace the design-based
+arguments for random assignment, exclusion, monotonicity, and relevance.
+
+\section*{Summary}
+
+\begin{itemize}
+  \item Random assignment identifies the ITT effect of an offer even when
+        treatment receipt is endogenous.
+  \item With exclusion, relevance, and monotonicity, the outcome ITT divided by
+        the first-stage ITT identifies LATE for compliers.
+  \item IV is a ratio estimator based on the moment condition
+        $\E[Z_i\varepsilon_i]=0$; OLS fails when
+        $\Cov(D_i,\varepsilon_i)\neq0$.
+  \item Weak first stages make conventional normal approximations unreliable.
+  \item A credible instrument requires an institutional argument, not merely a
+        significant first stage.
+\end{itemize}

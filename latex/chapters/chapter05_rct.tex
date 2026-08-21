@@ -1,0 +1,332 @@
+\chapter{Causal Inference and Randomized Controlled Trials}
+\label{chap:rct}
+
+\section*{Outline}
+
+This chapter introduces the potential-outcomes language of causal inference, the
+average treatment effect, and randomized controlled trials (RCTs).  We then study
+two estimators: the difference in means and regression adjustment.  The second
+method uses baseline covariates to improve precision without requiring the outcome
+to be linear in those covariates.
+
+\section{Potential outcomes}
+\label{sec:rct-potential-outcomes}
+
+There is more than one way to formalize causality.  We use the potential-outcomes
+framework, associated with Neyman and Rubin.  Imagine an individual indexed by
+$i$.
+
+\begin{itemize}
+  \item The \emph{treatment} $D_i$ records the treatment that individual $i$
+  receives.  Treatments may be discrete or continuous, but here
+  $D_i\in\{0,1\}$.
+  \item The \emph{potential outcome} $Y_i(d)$ is the outcome that would be
+  observed for individual $i$ under treatment status $d$.
+  For example, $Y_i(1)$ could be future income if $i$ attends HKUST and
+  $Y_i(0)$ future income otherwise.
+  \item The observed outcome satisfies the \emph{consistency relation}
+  \begin{equation}
+    Y_i=Y_i(D_i)=D_iY_i(1)+(1-D_i)Y_i(0).
+    \label{eq:rct-consistency}
+  \end{equation}
+\end{itemize}
+
+Writing $Y_i(d)$ presumes that the treatment is well defined and that one
+individual's potential outcome is unaffected by other individuals' treatment
+assignments.  Together with consistency, these conditions are commonly grouped
+under the \emph{stable unit treatment value assumption} (SUTVA).  SUTVA rules out,
+for example, spillovers between treated and untreated students.  Whether it is
+credible depends on the application.
+
+The individual treatment effect is
+\[
+  Y_i(1)-Y_i(0).
+\]
+It is mathematically well defined, but both potential outcomes cannot normally be
+observed for the same individual.  This is the \emph{fundamental problem of causal
+inference}.  Replacing the missing $Y_i(0)$ by another person's observed outcome
+would require those two people to have the same untreated potential outcome---an
+implausibly strong requirement.
+
+\section{The average treatment effect}
+\label{sec:rct-ate}
+
+We therefore begin with an average causal parameter:
+\begin{equation}
+  \tau\equiv \operatorname{ATE}
+  =\E\!\left[Y_i(1)-Y_i(0)\right]
+  =\E[Y_i(1)]-\E[Y_i(0)].
+  \label{eq:rct-ate}
+\end{equation}
+Under i.i.d. sampling, this population expectation does not depend on the label
+$i$.  Notice that treatment effects may still differ across individuals; the ATE
+summarizes their population average.
+
+\section{Randomization and identification}
+\label{sec:rct-identification}
+
+In an RCT, the researcher assigns treatment at random.  In the simple Bernoulli
+design used for the population calculations below,
+\begin{equation}
+  D_i\indep \bigl(Y_i(1),Y_i(0)\bigr),
+  \qquad \Pr(D_i=1)=\pi\in(0,1).
+  \label{eq:rct-randomization}
+\end{equation}
+For example, subjects in a drug trial may be randomly assigned either the drug or
+a placebo.  Assignment then does not depend on baseline health, income, or the
+outcomes that the subjects would experience under either arm.  A survey that merely
+compares people who chose to take the drug with people who did not would not, in
+general, have this property.
+
+Randomization turns the unobserved potential-outcome means into observable
+conditional means:
+\begin{align}
+  \tau
+  &=\E[Y_i(1)]-\E[Y_i(0)] \notag\\
+  &=\E[Y_i(1)\mid D_i=1]-\E[Y_i(0)\mid D_i=0] \notag\\
+  &=\E[Y_i\mid D_i=1]-\E[Y_i\mid D_i=0].
+  \label{eq:rct-id}
+\end{align}
+The second line uses random assignment, and the third uses consistency.  Equation
+\eqref{eq:rct-id} \emph{identifies} the ATE: it expresses a causal parameter in
+terms of the distribution of observed variables.
+
+\section{Difference in means}
+\label{sec:rct-dm}
+
+Let $n_d=\sum_{i=1}^n\1\{D_i=d\}$.  The sample analogue of
+\eqref{eq:rct-id} is
+\begin{equation}
+  \widehat\tau_{\mathrm{DM}}
+  =\frac{1}{n_1}\sum_{i:D_i=1}Y_i
+   -\frac{1}{n_0}\sum_{i:D_i=0}Y_i.
+  \label{eq:rct-dm}
+\end{equation}
+Conditional on having observations in both arms, this estimator is unbiased under
+random assignment.  It is also consistent and asymptotically normal.  If treatment
+is assigned independently with probability $\pi$, then
+\begin{equation}
+  \sqrt n\bigl(\widehat\tau_{\mathrm{DM}}-\tau\bigr)
+  \dto \N(0,V_{\mathrm{DM}}),
+  \qquad
+  V_{\mathrm{DM}}
+  =\frac{\Var(Y_i(1))}{\pi}
+   +\frac{\Var(Y_i(0))}{1-\pi}.
+  \label{eq:rct-dm-clt}
+\end{equation}
+Equivalently, the two variances in \eqref{eq:rct-dm-clt} can be written as
+$\Var(Y_i\mid D_i=d)$.  A heteroskedasticity-robust standard error estimates the
+sampling uncertainty without imposing equal outcome variances across the two arms.
+
+\subsection{Difference in means as OLS}
+
+Because $D$ is binary,
+\begin{align*}
+  \E[Y\mid D]
+  &=\E[Y\mid D=0]
+    +D\{\E[Y\mid D=1]-\E[Y\mid D=0]\}\\
+  &=\delta_0+\tau D,
+\end{align*}
+where the last equality uses \eqref{eq:rct-id}.  Defining
+$\varepsilon=Y-\E[Y\mid D]$ gives
+\begin{equation}
+  Y_i=\delta_0+\tau D_i+\varepsilon_i,
+  \qquad \E[\varepsilon_i\mid D_i]=0.
+  \label{eq:rct-short-reg}
+\end{equation}
+This is a population projection identity, not an assumption that the outcome has a
+structurally linear model.
+
+The OLS slope from \eqref{eq:rct-short-reg} is exactly
+\begin{align*}
+  \widehat\tau
+  &=\frac{\sum_i(D_i-\bar D)Y_i}
+          {\sum_i(D_i-\bar D)^2}\\
+  &=\frac{1}{n_1}\sum_{i:D_i=1}Y_i
+    -\frac{1}{n_0}\sum_{i:D_i=0}Y_i
+   =\widehat\tau_{\mathrm{DM}}.
+\end{align*}
+Thus a regression of $Y$ on an intercept and $D$ is simply a convenient way to
+compute the difference in means and its robust standard error.
+
+\subsection{A survey-wording experiment}
+\label{sec:rct-gss}
+
+The following example, adapted from the machine-learning causal-inference tutorial
+by Susan Athey and Stefan Wager, uses a simplified General Social Survey experiment.
+Roughly half the respondents were asked whether the government spends too much on
+``welfare'' ($D_i=1$); the others were asked about ``assistance to the poor''
+($D_i=0$).  The binary outcome equals one for a ``yes'' response.  The code verifies
+that the direct calculation and OLS produce the same point estimate.
+
+\begin{rcode}
+library(lmtest)
+library(sandwich)
+
+gss <- read.csv("data/welfare-small.csv")
+Y <- gss$Y
+D <- gss$D
+
+# Direct difference in means
+tau_dm <- mean(Y[D == 1]) - mean(Y[D == 0])
+tau_dm
+
+# The coefficient on D is exactly the same number
+fit_dm <- lm(Y ~ D)
+coeftest(fit_dm, vcov. = vcovHC(fit_dm, type = "HC2"))
+\end{rcode}
+
+The wording produces a statistically detectable difference in respondents'
+interpretation of government spending.
+
+\section{Regression adjustment}
+\label{sec:rct-reg-adjustment}
+
+The difference in means ignores baseline covariates that predict outcomes.  Let
+$W_i$ contain such pre-treatment variables and strengthen
+\eqref{eq:rct-randomization} to
+\begin{equation}
+  D_i\indep\bigl(Y_i(1),Y_i(0),W_i\bigr).
+  \label{eq:rct-randomization-w}
+\end{equation}
+Randomization makes covariate adjustment unnecessary for identification, but useful
+for precision.
+
+The safest general-purpose specification allows the relationship between $Y$ and
+$W$ to differ by treatment arm.  Center $W_i$ at its population mean,
+$X_i=W_i-\E[W_i]$, and define the arm-specific linear-projection slopes
+\begin{equation}
+  \gamma_d
+  =\{\E[X_iX_i']\}^{-1}\E\!\left[X_i\{Y_i(d)-\E[Y_i(d)]\}\right],
+  \qquad d\in\{0,1\},
+  \label{eq:rct-arm-slopes}
+\end{equation}
+assuming $\E[X_iX_i']$ is nonsingular.  These slopes always exist under the stated
+moment conditions.  They do \emph{not} assert that the conditional mean of
+$Y_i(d)$ is linear.
+
+In practice, replace $\E[W_i]$ by the overall sample mean $\bar W$ and estimate
+the fully interacted regression
+\begin{equation}
+  Y_i=\alpha+\tau D_i+(W_i-\bar W)'\beta_0
+      +D_i(W_i-\bar W)'\bigl(\beta_1-\beta_0\bigr)+u_i.
+  \label{eq:rct-lin-reg}
+\end{equation}
+The coefficient on $D_i$ compares the fitted treatment and control outcomes at the
+overall covariate mean.  It consistently estimates the ATE under randomization,
+even if the fitted linear regressions are misspecified.  Use a
+heteroskedasticity-robust standard error.  The estimator need not be exactly unbiased
+in a finite sample, but its bias is asymptotically negligible.
+
+\subsection{Why the interacted adjustment improves precision}
+
+This argument is worth doing carefully.  Define the arm-specific projection
+residuals
+\[
+  r_i(d)=Y_i(d)-\E[Y_i(d)]-X_i'\gamma_d.
+\]
+The normal equations imply $\E[X_i r_i(d)]=0$, so
+\begin{equation}
+  \Var(Y_i(d))=\Var(r_i(d))+\gamma_d'\E[X_iX_i']\gamma_d.
+  \label{eq:rct-projection-pythagoras}
+\end{equation}
+Because the regression is evaluated at the overall sample covariate mean, sampling
+variation in that mean also enters when the two arm-specific slopes differ.  The
+interacted regression-adjustment estimator has asymptotic variance
+\begin{equation}
+  V_{\mathrm{RA}}
+  =\frac{\Var(r_i(1))}{\pi}
+   +\frac{\Var(r_i(0))}{1-\pi}
+   +(\gamma_1-\gamma_0)'\E[X_iX_i'](\gamma_1-\gamma_0).
+  \label{eq:rct-ra-var}
+\end{equation}
+Combining \eqref{eq:rct-dm-clt}, \eqref{eq:rct-projection-pythagoras}, and
+\eqref{eq:rct-ra-var} yields
+\begin{equation}
+  V_{\mathrm{DM}}-V_{\mathrm{RA}}
+  =\left\{
+      \sqrt{\frac{1-\pi}{\pi}}\gamma_1
+      +\sqrt{\frac{\pi}{1-\pi}}\gamma_0
+    \right\}'
+    \E[X_iX_i']
+    \left\{
+      \sqrt{\frac{1-\pi}{\pi}}\gamma_1
+      +\sqrt{\frac{\pi}{1-\pi}}\gamma_0
+    \right\}
+  \geq 0.
+  \label{eq:rct-efficiency-gain}
+\end{equation}
+The gain is large when baseline covariates explain substantial outcome variation.
+No invalid equality between treatment-arm conditional covariances is needed: each
+arm has its own projection slope and residual variance.
+
+A regression without treatment--covariate interactions is still consistent for the
+ATE under \eqref{eq:rct-randomization-w}.  With unequal treatment probabilities and
+heterogeneous covariate slopes, however, it does not have the same general
+no-loss-of-precision guarantee.  The centered, fully interacted specification in
+\eqref{eq:rct-lin-reg} is therefore the preferred default.
+
+For the survey experiment, the implementation is:
+\begin{rcode}
+covariates <- c("age", "polviews", "income", "educ", "marital", "sex")
+gss_c <- gss
+gss_c[covariates] <- lapply(gss[covariates], function(x) x - mean(x))
+
+fit_ra <- lm(
+  Y ~ D * (age + polviews + income + educ + marital + sex),
+  data = gss_c
+)
+coeftest(fit_ra, vcov. = vcovHC(fit_ra, type = "HC2"))["D", ]
+\end{rcode}
+
+Only pre-treatment covariates should be used.  Adjusting for variables caused by
+treatment can change the estimand and introduce bias.
+
+\subsection{Monte Carlo illustration}
+
+The next experiment uses a deliberately nonlinear outcome model.  Because $D$ is
+randomized independently of $W$, the true ATE is
+\[
+  \E[1+W^2]=1+\{\Var(W)+\E[W]^2\}=6
+\]
+when $W\sim\N(2,1)$.  Both estimators are consistent; the interacted adjustment uses
+the predictive information in $W$ and is more precise.
+
+\begin{rcode}
+set.seed(5280)
+n <- 1000
+B <- 500
+tau_dm <- numeric(B)
+tau_ra <- numeric(B)
+
+for (b in seq_len(B)) {
+  W <- rnorm(n, 2, 1)
+  D <- rbinom(n, 1, 0.5)
+  e <- rnorm(n)
+  Y <- 1 + D + W^2 * D + exp(W) + e
+
+  tau_dm[b] <- coef(lm(Y ~ D))["D"]
+  Wc <- W - mean(W)
+  tau_ra[b] <- coef(lm(Y ~ D * Wc))["D"]
+}
+
+c(mean_dm = mean(tau_dm), mean_ra = mean(tau_ra))
+c(var_dm = var(tau_dm), var_ra = var(tau_ra))
+\end{rcode}
+
+\section{Summary}
+
+\begin{itemize}
+  \item Potential outcomes define causal effects, while consistency links the
+  observed outcome to the potential outcome selected by treatment.
+  \item Random assignment identifies the ATE as a difference in observable means.
+  \item The difference in means is exactly the coefficient on treatment in a
+  regression with an intercept and treatment only.
+  \item Baseline covariates are unnecessary for identification in an RCT, but a
+  centered, fully interacted regression adjustment can improve precision without
+  assuming a correct linear outcome model.
+  \item The main assumptions in this chapter are SUTVA, i.i.d. sampling, randomized
+  treatment, suitable moments, and nonsingularity of the covariate second-moment
+  matrix.  Natural or quasi-experiments may sometimes justify random assignment, but
+  that claim must be defended in each application.
+\end{itemize}

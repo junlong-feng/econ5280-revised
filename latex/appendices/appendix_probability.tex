@@ -1,0 +1,190 @@
+\chapter{Additional Probability and Asymptotic Tools}
+\label{app:probability}
+
+This appendix provides a more careful probability-space description, a few
+distributional examples, simulation code for the WLLN and CLT, and the delta
+method.  None of it is required on a first reading of
+Chapter~\ref{ch:probability}.
+
+\section{Probability spaces, events, and random variables}
+
+A probability space is a triple $(\mathcal S,\mathcal F,P)$:
+\begin{itemize}
+  \item $\mathcal S$ is the \emph{sample space} of elementary outcomes;
+  \item $\mathcal F$ is a sigma-algebra of events, meaning it contains
+        $\mathcal S$ and is closed under complements and countable unions;
+  \item $P:\mathcal F\to[0,1]$ satisfies $P(\mathcal S)=1$ and countable
+        additivity over pairwise disjoint events.
+\end{itemize}
+A real random variable is a measurable map
+$X:\mathcal S\to\mathbb R$.  Its distribution is the probability measure
+induced on the real line:
+\[
+  P_X(B)=P\{s\in\mathcal S:X(s)\in B\}.
+\]
+Thus, the sample space contains underlying outcomes, whereas the support of
+$X$ contains possible numerical values.  Treating those two sets as the same
+is a convenient shortcut in elementary examples, but it is not the general
+definition.
+
+For example, an outcome can record tomorrow's temperature, rainfall, and
+wind.  The random variable $X$ may retain only the indicator that it rains.
+Then the sample space is rich, while the support of $X$ is merely $\{0,1\}$.
+
+\section{CDFs, densities, and continuous distributions}
+
+Every real random variable has a right-continuous c.d.f.
+$F_X(x)=P(X\leq x)$.  A variable is \emph{continuous} (atomless) if
+$P(X=x)=0$ for every $x$, equivalently if its c.d.f. is continuous.  It is
+\emph{absolutely continuous} if there exists an integrable density $f_X$
+such that
+\[
+  F_X(x)=\int_{-\infty}^{x}f_X(s)\,ds.
+\]
+Every absolutely continuous distribution is continuous, but the converse is
+false.  The Cantor distribution is the standard counterexample: it has a
+continuous c.d.f. but no density with respect to ordinary length (Lebesgue
+measure).
+
+The geometric ``probability equals length'' picture is therefore not a
+general definition.  If $X$ is uniform on $[0,1]$, then
+$P(X\in A)$ equals the length of $A$ for suitable sets $A$.  Under a
+nonuniform density, probability is instead weighted length,
+$P(X\in A)=\int_Af_X(x)\,dx$; for a discrete distribution, it is a sum of
+point masses.
+
+The code below compares three normal densities.  It uses base R so that the
+live page loads quickly.
+
+\begin{rcode}
+x <- seq(-7, 7, length.out = 400)
+plot(x, dnorm(x, 0, 1), type = "l", lwd = 2,
+     xlab = "x", ylab = "density", ylim = c(0, 0.42))
+lines(x, dnorm(x, 2, 1), lty = 2, lwd = 2, col = "steelblue")
+lines(x, dnorm(x, 0, 2), lty = 3, lwd = 2, col = "firebrick")
+legend("topright", c("N(0,1)", "N(2,1)", "N(0,4)"),
+       lty = 1:3, lwd = 2,
+       col = c("black", "steelblue", "firebrick"), bty = "n")
+\end{rcode}
+
+\section{Conditional distributions with continuous variables}
+
+When $P(X=x)=0$, elementary event conditioning cannot define
+$P(Y\leq y\mid X=x)$ by a ratio of probabilities.  A regular conditional
+distribution supplies a mathematically valid version.  When a joint density
+exists and $f_X(x)>0$, it has the familiar formula
+\[
+  f_{Y\mid X}(y\mid x)=\frac{f_{X,Y}(x,y)}{f_X(x)}.
+\]
+One sometimes motivates this expression using limits of shrinking intervals
+around $x$.  Such a limit is an intuition, not a universal definition: its
+validity requires regularity conditions and it identifies the conditional
+law only for almost every $x$.
+
+Bayes' rule for densities is
+\[
+  f_{X\mid Y}(x\mid y)
+  =\frac{f_{Y\mid X}(y\mid x)f_X(x)}{f_Y(y)},
+  \qquad f_Y(y)>0.
+\]
+Marginalization gives
+\[
+  f_X(x)=\int f_{X,Y}(x,y)\,dy,
+  \qquad
+  F_X(x)=\int F_{X\mid Y}(x\mid y)\,dF_Y(y).
+\]
+
+\section{The bivariate normal example}
+
+A random vector $(X,Y)'$ is jointly normal if every linear combination
+$aX+bY$ is normally distributed.  For a jointly normal pair, zero covariance
+is equivalent to independence.  This equivalence is special: it is false for
+general distributions.
+
+The following optional demonstration plots bivariate normal densities with
+positive, negative, and zero correlation.  The live version uses
+\texttt{mvtnorm} and \texttt{plotly}; the two-dimensional contour option is
+usually quicker in class.
+
+\begin{rcode}
+library(mvtnorm)
+x <- seq(-4, 4, length.out = 80)
+y <- seq(-4, 4, length.out = 80)
+mu <- c(0, 0)
+Sigma <- matrix(c(1, 0.5, 0.5, 1), 2, 2)
+z <- outer(x, y, Vectorize(function(a, b) {
+  dmvnorm(c(a, b), mean = mu, sigma = Sigma)
+}))
+contour(x, y, z, xlab = "X", ylab = "Y")
+\end{rcode}
+
+\section{A compact WLLN and CLT simulation}
+
+The original classroom simulation repeated similar commands for ten sample
+sizes.  The vectorized version below does the same job more transparently.
+For Bernoulli$(0.5)$ observations, the WLLN predicts concentration of
+$\bar X_n$ around $0.5$, and the CLT predicts
+\[
+  \frac{\sqrt n(\bar X_n-0.5)}{0.5}\dto N(0,1),
+\]
+because the Bernoulli standard deviation is $0.5$.
+
+\begin{rcode}
+set.seed(12)
+B <- 1000
+n_grid <- c(10, 25, 50, 100, 250)
+
+sim_one_n <- function(n) {
+  means <- replicate(B, mean(rbinom(n, 1, 0.5)))
+  data.frame(
+    n = n,
+    mean = means,
+    standardized = sqrt(n) * (means - 0.5) / 0.5
+  )
+}
+sim <- do.call(rbind, lapply(n_grid, sim_one_n))
+
+# WLLN: estimated probability of falling within 0.1 of the mean
+aggregate(abs(mean - 0.5) < 0.1 ~ n, sim, mean)
+
+# CLT: compare one standardized histogram with N(0,1)
+z <- subset(sim, n == max(n_grid))$standardized
+hist(z, probability = TRUE, breaks = 25,
+     main = paste("n =", max(n_grid)), xlab = "standardized mean")
+curve(dnorm(x), add = TRUE, lwd = 2, col = "firebrick")
+\end{rcode}
+
+\section{The delta method}
+
+The delta method transfers an asymptotic distribution through a smooth
+transformation.  It is a first-order Taylor expansion with probabilistic
+remainder control.
+
+\begin{theorem}[Multivariate delta method]
+Suppose $X_n\in\mathbb R^k$ satisfies
+\[
+  \sqrt n(X_n-\theta)\dto N(0,\Sigma),
+\]
+and $g:\mathbb R^k\to\mathbb R^\ell$ is continuously differentiable near
+$\theta$.  Let $G(\theta)$ be the $\ell\times k$ Jacobian whose $(r,j)$ entry
+is $\partial g_r(\theta)/\partial\theta_j$.  Then
+\[
+  \sqrt n\{g(X_n)-g(\theta)\}
+  \dto N\!\left(0,G(\theta)\Sigma G(\theta)'\right).
+\]
+\end{theorem}
+
+For a scalar-valued $g$, $G(\theta)$ is a row vector and the limiting variance
+is $G(\theta)\Sigma G(\theta)'$.  A statement such as ``converges to
+$N(0,\cdot)$'' must include the $N$; a covariance matrix alone is not a
+distribution.  If the first derivative is zero, this first-order result is
+degenerate and a higher-order delta method may be needed.
+
+\begin{example}[Log transformation]
+If $\sqrt n(\widehat\theta-\theta)\dto N(0,V)$ with $\theta>0$, then
+$g(\theta)=\log\theta$ has derivative $1/\theta$, so
+\[
+  \sqrt n\{\log\widehat\theta-\log\theta\}
+  \dto N\!\left(0,\frac{V}{\theta^2}\right).
+\]
+\end{example}

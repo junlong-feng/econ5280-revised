@@ -1,0 +1,69 @@
+\documentclass[11pt,oneside,openany]{book}
+\input{preamble}
+
+\title{ECON 5280\\Causal Inference and Machine Learning}
+\author{Junlong Feng}
+\date{Revised lecture notes}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+  \centering
+  \vspace*{2.2cm}
+  {\color{econblue}\rule{\textwidth}{1.2pt}}\\[1.4cm]
+  {\Huge\bfseries ECON 5280\par}
+  \vspace{0.45cm}
+  {\LARGE Causal Inference and Machine Learning\par}
+  \vspace{1.1cm}
+  {\Large Junlong Feng\par}
+  \vfill
+  {\large Revised lecture notes\par}
+  \vspace{0.7cm}
+  {\color{econblue}\rule{\textwidth}{1.2pt}}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+\frontmatter
+
+\chapter*{How to Use These Notes}
+\addcontentsline{toc}{chapter}{How to Use These Notes}
+These notes are the canonical, print-ready version of the course. The companion
+Quarto Live project in the \texttt{live/} directory contains browser-executable
+R cells. It requires no local R installation: code runs through WebR inside the
+browser. Computationally intensive examples retain their full specification in
+the notes but use smaller classroom settings in the live pages. A native R
+Codespaces configuration is included as a fallback for full bootstrap inference
+and other heavy calculations.
+
+The appendices preserve mathematical and computational details that are useful
+for reference but are not prerequisites for the later causal-inference chapters.
+
+\tableofcontents
+
+\mainmatter
+\include{chapters/chapter01_intro}
+\include{chapters/chapter02_matrix}
+\include{chapters/chapter03_probability}
+\include{chapters/chapter04_regression}
+\include{chapters/chapter05_rct}
+\include{chapters/chapter06_causal_forest}
+\include{chapters/chapter07_doubly_robust}
+\include{chapters/chapter08_rd}
+\include{chapters/chapter09_late}
+\include{chapters/chapter10_nn}
+\include{chapters/chapter11_did}
+
+\appendix
+\include{appendices/appendix_matrix}
+\include{appendices/appendix_probability}
+
+\backmatter
+\chapter*{Runtime and Reproducibility}
+\addcontentsline{toc}{chapter}{Runtime and Reproducibility}
+The source bundle includes a Quarto Live/WebR site and a two-core GitHub
+Codespaces configuration. Package declarations are kept chapter-specific to
+reduce browser startup time. See the project \texttt{README.md} for build and
+deployment instructions.
+
+\end{document}

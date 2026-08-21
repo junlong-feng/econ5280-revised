@@ -1,0 +1,267 @@
+\chapter{Probability}
+\label{ch:probability}
+
+Econometric estimators are functions of random samples.  Probability gives
+us the language for describing their behavior before the sample is observed.
+This chapter reviews the ideas used repeatedly later in the course.  Optional
+measure-theoretic details, longer simulations, and the delta method appear in
+Appendix~\ref{app:probability}.
+
+\section{Random variables and distributions}
+
+A random variable is a numerical function of an underlying random outcome.
+For example, the outcome might describe all features of tomorrow's weather,
+while $X$ records only whether it rains.  The set of values that $X$ can take
+with positive probability, or can approach arbitrarily closely, is its
+\emph{support}.  The support should not be confused with the underlying
+sample space of outcomes.
+
+A random variable is \emph{discrete} when its distribution is concentrated
+on a finite or countable set.  Its probability mass function (p.m.f.) is
+\[
+  p_X(x)=\Pr(X=x).
+\]
+A Bernoulli random variable $X\sim\operatorname{Bernoulli}(p)$ has support
+$\{0,1\}$ and $\Pr(X=1)=p$.
+
+\begin{rcode}
+set.seed(5280)
+rbinom(n = 10, size = 1, prob = 0.5)
+\end{rcode}
+
+The cumulative distribution function (c.d.f.) is defined for every random
+variable:
+\[
+  F_X(x)=\Pr(X\leq x),\qquad x\in\mathbb R.
+\]
+If $X$ has a density $f_X$, then
+\[
+  F_X(x)=\int_{-\infty}^{x}f_X(s)\,ds,
+  \qquad
+  \Pr(a<X\leq b)=\int_a^b f_X(s)\,ds.
+\]
+Such a variable is called \emph{absolutely continuous}, and
+$\Pr(X=x)=0$ for every $x$.  Probability is not generally the geometric
+length of an interval: it is the area under the density.  Length gives
+probability only for a suitably normalized uniform distribution.
+
+A normal variable $X\sim N(\mu,\sigma^2)$ has density
+\[
+  f_X(x)=\frac{1}{\sigma\sqrt{2\pi}}
+  \exp\!\left\{-\frac{(x-\mu)^2}{2\sigma^2}\right\}.
+\]
+Normal distributions are important for large-sample approximations; we will
+not assume that economic variables themselves are normally distributed.
+
+\subsection{Joint, marginal, and conditional distributions}
+
+The joint distribution of $(X,Y)$ describes their behavior together.  Its
+marginal distributions describe $X$ and $Y$ separately.  Conditional
+distributions describe one variable within a subpopulation indexed by the
+other.
+
+When a joint density exists,
+\[
+  f_X(x)=\int f_{X,Y}(x,y)\,dy,
+  \qquad
+  f_{Y\mid X}(y\mid x)=\frac{f_{X,Y}(x,y)}{f_X(x)}
+\]
+for values of $x$ with $f_X(x)>0$.  Hence
+\[
+  f_{X,Y}(x,y)=f_{Y\mid X}(y\mid x)f_X(x)
+              =f_{X\mid Y}(x\mid y)f_Y(y).
+\]
+The joint distribution contains the marginals, but the two marginals alone
+usually do not reveal how $X$ and $Y$ move together.
+
+\begin{definition}[Independence]
+$X$ and $Y$ are independent, written $X\perp Y$, if
+\[
+  F_{X,Y}(x,y)=F_X(x)F_Y(y)
+\]
+for every $(x,y)$.  When densities exist, this is equivalent to
+$f_{X,Y}(x,y)=f_X(x)f_Y(y)$ almost everywhere.
+\end{definition}
+
+If $X\perp Y$, then $g(X)\perp h(Y)$ for measurable functions $g$ and $h$.
+
+\section{Expectation and dispersion}
+
+For a discrete variable, replace the integrals below by sums.  Provided the
+relevant integral exists, the expectation is
+\[
+  \mathbb E(X)=\int x f_X(x)\,dx=\mu_X.
+\]
+Expectation is linear:
+\[
+  \mathbb E(aX+bY)=a\mathbb E(X)+b\mathbb E(Y),
+\]
+whether or not $X$ and $Y$ are independent.
+
+Variance and covariance are
+\begin{align*}
+  \operatorname{Var}(X)
+    &=\mathbb E[(X-\mu_X)^2]
+      =\mathbb E(X^2)-\mu_X^2,\\
+  \operatorname{Cov}(X,Y)
+    &=\mathbb E[(X-\mu_X)(Y-\mu_Y)]
+      =\mathbb E(XY)-\mu_X\mu_Y.
+\end{align*}
+Useful rules include
+\begin{align*}
+  \operatorname{Var}(aX+bY)
+  &=a^2\operatorname{Var}(X)+b^2\operatorname{Var}(Y)
+    +2ab\operatorname{Cov}(X,Y),\\
+  \operatorname{Cov}(aX+bY,Z)
+  &=a\operatorname{Cov}(X,Z)+b\operatorname{Cov}(Y,Z).
+\end{align*}
+The correlation is
+\[
+  \rho_{XY}=\frac{\operatorname{Cov}(X,Y)}
+  {\sqrt{\operatorname{Var}(X)\operatorname{Var}(Y)}}\in[-1,1]
+\]
+when both variances are positive.  Correlation is unit-free, but zero
+correlation need not imply independence.
+
+For a $k\times1$ random vector $X$, its mean is the vector
+$\mu_X=\mathbb E(X)$ and its covariance matrix is
+\[
+  \Sigma_X
+  =\operatorname{Var}(X)
+  =\mathbb E[(X-\mu_X)(X-\mu_X)'].
+\]
+It is symmetric and p.s.d. because, for every $a\in\mathbb R^k$,
+\[
+  a'\Sigma_Xa=\operatorname{Var}(a'X)\geq0.
+\]
+
+\section{Conditional expectation}
+
+Conditional expectation is among the most important objects in this course.
+For a continuous pair with a conditional density,
+\[
+  \mathbb E(Y\mid X=x)=\int y f_{Y\mid X}(y\mid x)\,dy.
+\]
+For a fixed $x$, this is a number.  By contrast,
+$\mathbb E(Y\mid X)$ is a random variable---a function of the still-random
+$X$.
+
+Conditional expectation is linear, and variables measurable with respect to
+the conditioning information can be taken outside:
+\begin{align*}
+  \mathbb E(aY+bZ\mid X)
+    &=a\mathbb E(Y\mid X)+b\mathbb E(Z\mid X),\\
+  \mathbb E[g(X)Y\mid X]
+    &=g(X)\mathbb E(Y\mid X).
+\end{align*}
+
+\begin{theorem}[Law of iterated expectations]
+If the expectations exist, then
+\[
+  \mathbb E\{\mathbb E(Y\mid X)\}=\mathbb E(Y).
+\]
+More generally, if the information in $Z$ is contained in the information in
+$X$, then
+\[
+  \mathbb E\{\mathbb E(Y\mid X)\mid Z\}=\mathbb E(Y\mid Z).
+\]
+\end{theorem}
+
+In particular, $\mathbb E(X\mid X)=X$.  We say that $Y$ is \emph{mean
+independent} of $X$ if $\mathbb E(Y\mid X)=\mathbb E(Y)$ almost surely.  Mean
+independence implies zero covariance (when second moments exist), but it is
+not symmetric in general.  Full independence implies mean independence in
+both directions:
+\[
+  X\perp Y
+  \ \Longrightarrow\ 
+  \mathbb E(Y\mid X)=\mathbb E(Y)
+  \ \Longrightarrow\ 
+  \operatorname{Cov}(X,Y)=0.
+\]
+
+\section{Random samples and large-sample theory}
+
+For cross-sectional applications, we often assume that
+$W_i=(Y_i,X_i')'$ is independent and identically distributed across units
+$i$.  This means $W_i\perp W_j$ for $i\neq j$ and each unit has the same
+distribution.  It does \emph{not} require the components within $W_i$ to be
+independent.  In panel data, repeated observations on the same unit are
+normally dependent; i.i.d. sampling may instead be imposed across units or
+replaced by a suitable dependence condition.
+
+\subsection{Convergence in probability and the WLLN}
+
+\begin{definition}[Convergence in probability]
+A sequence of random vectors $W_n$ converges in probability to $w$, written
+$W_n\stackrel{p}{\longrightarrow}w$, if, for every $\varepsilon>0$,
+\[
+  \Pr(\lVert W_n-w\rVert>\varepsilon)\longrightarrow0.
+\]
+When $W_n$ is an estimator and $w$ is the target parameter, this property is
+called consistency.
+\end{definition}
+
+\begin{theorem}[Weak law of large numbers]
+Let $X_1,\ldots,X_n$ be i.i.d. random vectors with
+$\mathbb E\lVert X_i\rVert<\infty$.  Then
+\[
+  \bar X_n=\frac1n\sum_{i=1}^n X_i
+  \stackrel{p}{\longrightarrow}\mathbb E(X_i).
+\]
+\end{theorem}
+
+For a scalar random variable with finite variance, the intuition is especially
+transparent because
+\[
+  \operatorname{Var}(\bar X_n)=\frac{\operatorname{Var}(X_i)}{n}\longrightarrow0.
+\]
+
+\subsection{Convergence in distribution and the CLT}
+
+\begin{definition}[Convergence in distribution]
+$W_n$ converges in distribution to $W$, written
+$W_n\stackrel{d}{\longrightarrow}W$, if
+\[
+  \mathbb E[g(W_n)]\longrightarrow\mathbb E[g(W)]
+\]
+for every bounded continuous function $g$.  For scalar variables this is
+equivalent to $F_{W_n}(w)\to F_W(w)$ at every continuity point of $F_W$.
+\end{definition}
+
+It is not correct to require convergence of probabilities for \emph{every}
+set: boundary sets can fail even when convergence in distribution holds.
+
+\begin{theorem}[Multivariate central limit theorem]
+Let $X_1,\ldots,X_n$ be i.i.d. $k\times1$ random vectors with mean $\mu$ and
+finite covariance matrix $\Sigma$.  Then
+\[
+  \sqrt n(\bar X_n-\mu)
+  \stackrel{d}{\longrightarrow}N(0,\Sigma).
+\]
+\end{theorem}
+
+The limiting distribution is standard normal only after appropriate
+standardization.  In the multivariate result, $\Sigma$ contains all
+cross-component covariances, not merely the marginal variances.
+
+\subsection{Continuous mapping and Slutsky's theorem}
+
+If $g$ is continuous at the relevant limiting values, the continuous mapping
+theorem gives
+\[
+  W_n\stackrel{p}{\longrightarrow}W
+  \Longrightarrow
+  g(W_n)\stackrel{p}{\longrightarrow}g(W),
+\]
+and an analogous statement holds for convergence in distribution.
+
+Slutsky's theorem says that if $X_n\stackrel{d}{\longrightarrow}X$ and
+$Y_n\stackrel{p}{\longrightarrow}c$ for a constant $c$, then
+\begin{align*}
+  X_n+Y_n&\stackrel{d}{\longrightarrow}X+c,\\
+  X_nY_n&\stackrel{d}{\longrightarrow}cX,\\
+  X_n/Y_n&\stackrel{d}{\longrightarrow}X/c\quad(c\neq0).
+\end{align*}
+These tools turn probability limits and central limit theorems into the
+large-sample distributions of econometric estimators.

@@ -1,0 +1,17 @@
+body {
+  font-family: Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  line-height: 1.58;
+}
+
+h1, h2, h3, h4, .navbar-title {
+  color: #17365d;
+}
+
+code, pre, .sourceCode {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.callout-important {
+  border-left-color: #17365d;
+}
+

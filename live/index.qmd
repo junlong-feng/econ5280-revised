@@ -1,0 +1,25 @@
+---
+title: "ECON 5280: Live R Companion"
+format: live-html
+webr:
+  packages: []
+---
+
+This site accompanies the Palatino PDF lecture notes. Each executable cell runs
+R directly in the browser through WebR, so the classroom computer does not need
+R installed and there is no server session to expire.
+
+Use the navigation menu to open a chapter. Package downloads are declared
+chapter by chapter to keep startup time manageable. The first cell on a page may
+take a little longer while the WebR engine and that chapter's packages load.
+
+```{webr}
+#| autorun: true
+#| edit: false
+cat("WebR is ready.  The mean of 1:10 is", mean(1:10), "\n")
+```
+
+For full-size causal-forest fits and bootstrap inference, use the included
+GitHub Codespaces configuration. Those examples are intentionally smaller in
+the browser companion so that they remain suitable for a live lecture.
+
