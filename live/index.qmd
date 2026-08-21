@@ -19,7 +19,9 @@ take a little longer while the WebR engine and that chapter's packages load.
 cat("WebR is ready.  The mean of 1:10 is", mean(1:10), "\n")
 ```
 
-For full-size causal-forest fits and bootstrap inference, use the included
-GitHub Codespaces configuration. Those examples are intentionally smaller in
-the browser companion so that they remain suitable for a live lecture.
-
+For production causal-forest fits and full bootstrap inference, use the included
+GitHub Codespaces configuration. The `grf` trainer requires native threads that
+WebR on GitHub Pages cannot supply, so Chapter 6 uses an explicitly labeled
+pure-R honest-tree teaching analogue. Chapter 7 demonstrates cross-fitted AIPW
+directly. These browser versions remain suitable for a live lecture; the PDF
+retains the native-R implementations.

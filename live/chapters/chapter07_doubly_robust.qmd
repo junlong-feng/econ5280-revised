@@ -8,7 +8,9 @@ webr:
   packages:
     - lmtest
     - sandwich
-    - grf
+    - splines
+  cell-options:
+    error: false
 ---
 
 ## Outline
@@ -225,37 +227,79 @@ nonparametric unconfoundedness model. The resulting efficiency statement concern
 regular estimators asymptotically; it does not say AIPW has the smallest variance in
 every finite sample.
 
-## 5. Implementation with `grf`
+## 5. Browser-safe cross-fitted AIPW
 
-The `grf` implementation uses out-of-bag nuisance predictions to construct an
-orthogonalized AIPW estimate. In the model below the true ATE is
+The PDF illustrates the native-R implementation based on `grf`, whose
+out-of-bag nuisance predictions can be used to construct an AIPW estimate. The
+compiled parallel code used by `grf` is not supported by the WebAssembly runtime
+behind this live page. The following classroom example therefore implements the
+cross-fitting algorithm directly with the recommended `splines` package and base
+R's `glm()` and `lm()`. It demonstrates the same AIPW score, but the spline
+learners should not be interpreted as reproducing a causal forest.
+
+In this model the conditional treatment effect is $\max\{W_1,0\}$, so the true
+ATE is
 $\mathbb E[\max\{W_1,0\}]=1/\sqrt{2\pi}\approx0.399$.
-
-The PDF's substantive code uses $n=2{,}000$ and 4,000 trees. The live cell uses
-$n=1{,}000$ and 500 trees for classroom speed. Increase the number of trees and
-check stability in final work.
+The teaching dictionaries below contain the threshold and hinge transformations
+used by the data-generating process, together with spline terms, so both nuisance
+models are correctly specified in this illustration.
 
 ```{webr}
-library(grf)
+library(splines)
 
 set.seed(5280)
-n <- 1000                    # classroom setting; PDF uses 2000
-p <- 10
+n <- 3000
+p <- 5
+K <- 5
+
 W <- matrix(rnorm(n * p), nrow = n, ncol = p)
-D <- rbinom(n, 1, 0.4 + 0.2 * (W[, 1] > 0))
-Y <- pmax(W[, 1], 0) * D + W[, 2] + pmin(W[, 3], 0) + rnorm(n)
+colnames(W) <- paste0("W", seq_len(p))
+D <- rbinom(n, 1, 0.4 + 0.2 * (W[, "W1"] > 0))
+Y <- pmax(W[, "W1"], 0) * D + W[, "W2"] +
+  pmin(W[, "W3"], 0) + rnorm(n)
+dat <- data.frame(Y = Y, D = D, W)
 
-forest_live <- causal_forest(W, Y, D, num.trees = 500)
-ate_live <- average_treatment_effect(
-  forest_live,
-  target.sample = "all",
-  method = "AIPW"
-)
+# Balanced folds; every prediction is made by a model that excludes that row.
+fold <- sample(rep(seq_len(K), length.out = n))
+e_hat <- m1_hat <- m0_hat <- numeric(n)
 
-c(estimate = unname(ate_live["estimate"]),
-  std.error = unname(ate_live["std.err"]),
-  truth = 1 / sqrt(2 * pi))
+propensity_formula <- D ~ I(W1 > 0) + ns(W1, df = 4) +
+  W2 + W3 + W4 + W5
+outcome_formula <- Y ~ I(pmax(W1, 0)) + ns(W1, df = 3) + W2 +
+  I(pmin(W3, 0)) + ns(W3, df = 3) + W4 + W5
+
+for (k in seq_len(K)) {
+  test <- fold == k
+  training <- dat[!test, ]
+  held_out <- dat[test, ]
+
+  fit_e <- glm(propensity_formula, family = binomial(), data = training)
+  fit_m1 <- lm(outcome_formula, data = training[training$D == 1, ])
+  fit_m0 <- lm(outcome_formula, data = training[training$D == 0, ])
+
+  e_hat[test] <- predict(fit_e, newdata = held_out, type = "response")
+  m1_hat[test] <- predict(fit_m1, newdata = held_out)
+  m0_hat[test] <- predict(fit_m0, newdata = held_out)
+}
+
+# A numerical safeguard; the true propensity here is either 0.4 or 0.6.
+e_hat <- pmin(pmax(e_hat, 0.02), 0.98)
+aipw_score <- m1_hat - m0_hat +
+  D * (Y - m1_hat) / e_hat -
+  (1 - D) * (Y - m0_hat) / (1 - e_hat)
+
+round(c(
+  estimate = mean(aipw_score),
+  std.error = sd(aipw_score) / sqrt(n),
+  truth = 1 / sqrt(2 * pi)
+), 4)
 ```
+
+The reported standard error is the usual influence-score standard error. Its
+validity relies on the overlap, moment, nuisance-consistency, and product-rate
+conditions stated above. The 0.02/0.98 bound is only a finite-sample numerical
+safeguard in this strongly overlapping simulation; clipping cannot repair a
+population overlap failure.
 
 In applied work, inspect estimated propensities and sensitivity to tuning. Extreme
 propensities can produce noisy scores despite double robustness. If overlap is poor,

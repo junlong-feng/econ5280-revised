@@ -9,18 +9,18 @@ resources:
 webr:
   resources:
     - ../data/welfare-small.csv
-  packages:
-    - grf
-    - DiagrammeR
+  cell-options:
+    error: false
 ---
 
 ## Outline
 
 This chapter studies treatment-effect heterogeneity. We identify the conditional
 average treatment effect (CATE), review the curse of dimensionality, and build the
-intuition for honest causal trees and causal forests. The live code uses smaller
-forests than a final empirical analysis so that each demonstration finishes during
-class.
+intuition for honest causal trees and causal forests. The live code uses a small,
+browser-safe ensemble of honest shallow trees written in base R. It illustrates honesty,
+randomized trees, and aggregation, but it is not the `grf` estimator used in the
+PDF's native-R analysis.
 
 ## 1. CATE and heterogeneity
 
@@ -178,7 +178,7 @@ Ordinary OLS is not a substitute for this flexibility. A linear interaction mode
 forces CATE to be linear in $W$, while unconfoundedness permits treatment to be
 related to nonlinear functions of $W$.
 
-## 4. Simulated application with `grf`
+## 4. Browser-safe honest shallow-tree ensemble
 
 Consider
 
@@ -186,83 +186,249 @@ $$
 Y=\max\{W_1,0\}D+W_2+\min\{W_3,0\}+\varepsilon.
 $$
 
-The true CATE is $\tau(w)=\max\{w_1,0\}$. The PDF version uses $n=2{,}000$
-and 4,000 trees for final variance estimates. This browser demonstration uses
-$n=1{,}000$ and 500 trees. The smaller setting is for classroom speed, not a
-recommended final empirical specification.
+The true CATE is $\tau(w)=\max\{w_1,0\}$. In this data-generating process the
+propensity score is known. For any predetermined centering function $m(w)$, define
+the transformed outcome
+
+$$
+Z_i=\frac{\{D_i-e(W_i)\}\{Y_i-m(W_i)\}}
+{e(W_i)\{1-e(W_i)\}}.
+$$
+
+Under unconfoundedness, $\mathbb E[Z_i\mid W_i=w]=\tau(w)$. Each tree below uses
+one half of a randomized subsample to choose at most four levels of splits in $Z$
+and the other half to estimate the leaf means. The ensemble averages many such
+honest shallow trees. In the simulation, $m(w)=w_2+\min\{w_3,0\}$ is known from the
+data-generating process and removes irrelevant baseline variation.
+
+This deliberately simple teaching implementation is **not** `grf`: it has only
+shallow trees, omits the full causal-forest splitting and weighting machinery, and
+does not provide a valid causal-forest standard error. The PDF's `grf` code is the
+substantive implementation and should be run with native R or a server-side R
+runtime. Current browser WebR builds cannot create the threads required by `grf`.
 
 ```{webr}
-library(grf)
-library(DiagrammeR)
+#| timelimit: 60
+#| max-lines: 32
+# Fit one randomized honest shallow tree to a transformed outcome.
+honest_shallow_tree <- function(X, Z, D, subsample.fraction = 0.7,
+                                mtry = max(1L, floor(sqrt(ncol(X)))),
+                                max.depth = 3L, n.cuts = 5L,
+                                min.arm = 5L) {
+  X <- as.matrix(X)
+  n <- nrow(X)
+  p <- ncol(X)
+
+  n.sub <- min(
+    n,
+    max(4L * min.arm * 2^max.depth, floor(subsample.fraction * n))
+  )
+  ids <- sample.int(n, n.sub, replace = FALSE)
+  n.split <- floor(n.sub / 2)
+  split.id <- ids[seq_len(n.split)]
+  est.id <- ids[seq.int(n.split + 1L, n.sub)]
+
+  leaf_ok <- function(id) {
+    sum(D[id] == 1) >= min.arm && sum(D[id] == 0) >= min.arm
+  }
+
+  grow_node <- function(split.id, est.id, depth) {
+    node.effect <- mean(Z[est.id])
+    if (depth >= max.depth) {
+      return(list(leaf = TRUE, effect = node.effect))
+    }
+
+    variables <- sample.int(p, min(p, mtry), replace = FALSE)
+    best.score <- -Inf
+    best <- NULL
+
+    for (j in variables) {
+      cuts <- unique(as.numeric(quantile(
+        X[split.id, j],
+        probs = seq(0.20, 0.80, length.out = n.cuts),
+        names = FALSE
+      )))
+
+      for (cut in cuts) {
+        left.split <- split.id[X[split.id, j] <= cut]
+        right.split <- split.id[X[split.id, j] > cut]
+        left.est <- est.id[X[est.id, j] <= cut]
+        right.est <- est.id[X[est.id, j] > cut]
+
+        # Estimation-half outcomes never enter split selection. Its X and D
+        # values are used only to prevent treatment-arm-empty leaves.
+        feasible <- leaf_ok(left.split) && leaf_ok(right.split) &&
+          leaf_ok(left.est) && leaf_ok(right.est)
+        if (!feasible) next
+
+        contrast <- mean(Z[left.split]) - mean(Z[right.split])
+        balance <- length(left.split) * length(right.split) /
+          length(split.id)^2
+        score <- balance * contrast^2
+
+        if (score > best.score) {
+          best.score <- score
+          best <- list(
+            variable = j, cut = cut,
+            left.split = left.split, right.split = right.split,
+            left.est = left.est, right.est = right.est
+          )
+        }
+      }
+    }
+
+    if (is.null(best)) {
+      return(list(leaf = TRUE, effect = node.effect))
+    }
+
+    list(
+      leaf = FALSE,
+      effect = node.effect,
+      variable = best$variable,
+      cut = best$cut,
+      left = grow_node(best$left.split, best$left.est, depth + 1L),
+      right = grow_node(best$right.split, best$right.est, depth + 1L)
+    )
+  }
+
+  grow_node(split.id, est.id, 0L)
+}
+
+fit_tree_ensemble <- function(X, Y, D, e, center = 0, B = 80L,
+                              subsample.fraction = 0.7,
+                              mtry = max(1L, floor(sqrt(ncol(X)))),
+                              max.depth = 3L, n.cuts = 5L,
+                              min.arm = 5L) {
+  X <- as.matrix(X)
+  e <- rep_len(as.numeric(e), length(Y))
+  center <- rep_len(as.numeric(center), length(Y))
+  if (any(!is.finite(e)) || any(e <= 0 | e >= 1)) {
+    stop("Every propensity score must lie strictly between zero and one.")
+  }
+
+  Z <- (D - e) * (Y - center) / (e * (1 - e))
+  trees <- vector("list", B)
+  for (b in seq_len(B)) {
+    trees[[b]] <- honest_shallow_tree(
+      X, Z, D,
+      subsample.fraction = subsample.fraction,
+      mtry = mtry, max.depth = max.depth,
+      n.cuts = n.cuts, min.arm = min.arm
+    )
+  }
+  list(trees = trees, n.variables = ncol(X))
+}
+
+predict_honest_tree <- function(tree, newdata) {
+  newdata <- as.matrix(newdata)
+  prediction <- numeric(nrow(newdata))
+
+  descend <- function(node, rows) {
+    if (length(rows) == 0L) return(invisible(NULL))
+    if (isTRUE(node$leaf)) {
+      prediction[rows] <<- node$effect
+    } else {
+      go.left <- newdata[rows, node$variable] <= node$cut
+      descend(node$left, rows[go.left])
+      descend(node$right, rows[!go.left])
+    }
+    invisible(NULL)
+  }
+
+  descend(tree, seq_len(nrow(newdata)))
+  prediction
+}
+
+predict_tree_ensemble <- function(object, newdata) {
+  newdata <- as.matrix(newdata)
+  tree.predictions <- vapply(
+    object$trees,
+    predict_honest_tree,
+    numeric(nrow(newdata)),
+    newdata = newdata
+  )
+  rowMeans(tree.predictions)
+}
 
 set.seed(5280)
-n <- 1000                    # classroom setting; PDF uses 2000
-p <- 10
+n <- 1000
+p <- 3
 W <- matrix(rnorm(n * p), nrow = n, ncol = p)
-D <- rbinom(n, 1, 0.4 + 0.2 * (W[, 1] > 0))
-Y <- pmax(W[, 1], 0) * D + W[, 2] + pmin(W[, 3], 0) + rnorm(n)
+e <- 0.4 + 0.2 * (W[, 1] > 0)
+D <- rbinom(n, 1, e)
+baseline <- W[, 2] + pmin(W[, 3], 0)
+Y <- pmax(W[, 1], 0) * D + baseline + rnorm(n)
 
 W_test <- matrix(0, nrow = 101, ncol = p)
 W_test[, 1] <- seq(-2, 2, length.out = 101)
 
-forest_live <- causal_forest(W, Y, D, num.trees = 500)
-pred <- predict(forest_live, W_test, estimate.variance = TRUE)
-se <- sqrt(pred$variance.estimates)
+trees <- fit_tree_ensemble(
+  W, Y, D, e, center = baseline,
+  B = 100L, mtry = 2L, max.depth = 4L, n.cuts = 5L,
+  min.arm = 4L
+)
+pred <- predict_tree_ensemble(trees, W_test)
 
-plot(W_test[, 1], pred$predictions,
-     ylim = range(pred$predictions - 1.96 * se,
-                  pred$predictions + 1.96 * se, 0, 2),
-     xlab = "W1", ylab = "CATE", type = "l")
-lines(W_test[, 1], pred$predictions + 1.96 * se, lty = 2)
-lines(W_test[, 1], pred$predictions - 1.96 * se, lty = 2)
-lines(W_test[, 1], pmax(W_test[, 1], 0), col = 2)
-legend("topleft", c("forest", "95% pointwise interval", "truth"),
-       lty = c(1, 2, 1), col = c(1, 1, 2), bty = "n")
+plot(W_test[, 1], pred,
+     ylim = range(pred, pmax(W_test[, 1], 0)),
+     xlab = "W1", ylab = "CATE", type = "l", lwd = 2)
+lines(W_test[, 1], pmax(W_test[, 1], 0), col = 2, lty = 2, lwd = 2)
+legend("topleft", c("honest shallow-tree ensemble", "truth"),
+       lty = c(1, 2), lwd = 2, col = c(1, 2), bty = "n")
 ```
 
-If desired, visualize one tree separately:
+The root split of one tree can be inspected without a graphics package:
 
 ```{webr}
-plot(get_tree(forest_live, 1))
+first.tree <- trees$trees[[1]]
+if (isTRUE(first.tree$leaf)) {
+  data.frame(split.variable = "no split", cutoff = NA_real_)
+} else {
+  data.frame(
+    split.variable = paste0("W", first.tree$variable),
+    cutoff = first.tree$cut
+  )
+}
 ```
 
-The intervals are pointwise, not a simultaneous confidence band for the entire
-curve. For final work, increase `num.trees` and check that estimates and standard
-errors are stable.
+The graph intentionally contains no confidence interval. Variation across these
+randomized trees is not a valid standard error because the trees reuse
+observations and the teaching algorithm omits the theory and variance estimator of
+a full causal forest.
 
 ### Survey-wording data
 
-The complete dataset is fairly large for an in-browser forest. The classroom cell
-uses a reproducible subsample of 4,000 observations and 500 trees. The PDF code uses
-the full sample and 4,000 trees.
+The survey wording was randomized, so a constant assignment probability is
+appropriate. Because the outcome is binary, the fixed midpoint $m(w)=0.5$ is a
+simple centering choice. For browser speed, the next cell uses a reproducible
+subsample of 3,000 observations and 60 honest shallow trees. It plots a descriptive
+heterogeneity estimate rather than a `grf` estimate or confidence band.
 
 ```{webr}
+#| timelimit: 60
 gss <- read.csv("data/welfare-small.csv")
 set.seed(5280)
-idx <- sample(seq_len(nrow(gss)), min(4000, nrow(gss)))
+idx <- sample(seq_len(nrow(gss)), min(3000, nrow(gss)))
 gss_live <- gss[idx, ]
 
 Y_gss <- as.numeric(gss_live$Y)
 D_gss <- as.numeric(gss_live$D)
 W_gss <- as.matrix(gss_live[, c("age", "educ")])
+e_gss <- mean(D_gss)
 W_test_gss <- cbind(
   age = 30,
   educ = seq(min(gss_live$educ), max(gss_live$educ), by = 1)
 )
 
-forest_gss <- causal_forest(
-  W_gss, Y_gss, D_gss,
-  num.trees = 500
+trees_gss <- fit_tree_ensemble(
+  W_gss, Y_gss, D_gss, e_gss, center = 0.5,
+  B = 60L, mtry = 2L, max.depth = 3L, n.cuts = 5L,
+  min.arm = 10L
 )
-pred_gss <- predict(forest_gss, W_test_gss, estimate.variance = TRUE)
-se_gss <- sqrt(pred_gss$variance.estimates)
+pred_gss <- predict_tree_ensemble(trees_gss, W_test_gss)
 
-plot(W_test_gss[, "educ"], pred_gss$predictions,
-     ylim = range(pred_gss$predictions - 1.96 * se_gss,
-                  pred_gss$predictions + 1.96 * se_gss),
+plot(W_test_gss[, "educ"], pred_gss,
      xlab = "Education", ylab = "Estimated CATE", type = "l")
-lines(W_test_gss[, "educ"], pred_gss$predictions + 1.96 * se_gss, lty = 2)
-lines(W_test_gss[, "educ"], pred_gss$predictions - 1.96 * se_gss, lty = 2)
 ```
 
 ## Summary
